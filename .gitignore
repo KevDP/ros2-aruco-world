@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+# colcon output lives in ~/ros2_ws, but ignore it if someone builds here
+build/
+install/
+log/
