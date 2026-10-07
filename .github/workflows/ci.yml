@@ -1,0 +1,20 @@
+name: ci
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Only what runs without ROS: lint everything, test the detection core. OpenCV is left
+      # unpinned on purpose: Ubuntu's 4.6 is covered by local runs, CI covers the current API.
+      - run: pip install ruff==0.16.10 pytest numpy opencv-python-headless
+      - run: ruff check .
+      - run: pytest -q aruco_detector/test
