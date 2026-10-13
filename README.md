@@ -1,8 +1,8 @@
 # ros2-aruco-world
 
 A Gazebo room with ArUco markers in different places and poses, a small robot with a camera, and a
-ROS 2 node that detects the markers live. Built to see what a robot camera actually gets from a
-marker as distance and viewing angle change.
+ROS 2 node that detects the markers live and places them around the robot in RViz. Built to see
+what a robot camera actually gets from a marker as distance and viewing angle change.
 
 ROS 2 Jazzy, Gazebo Harmonic, Ubuntu 24.04 (tested under WSL2 on Windows 11).
 
@@ -27,6 +27,20 @@ Ten markers (DICT_4X4_50, 15 cm) placed to cover a range of cases rather than th
 The exact position and facing of each marker live in one place, `aruco_world/scripts/build_world.py`,
 which prints how each one is seen from the starting pose every time it regenerates the world.
 
+## The robot and its frames
+
+The robot is described once, in `aruco_world/urdf/camera_bot.urdf.xacro`. `robot_state_publisher`
+publishes that description and its TF, and Gazebo spawns the robot from the same description.
+
+```
+odom -> base_footprint -> base_link -> camera_link -> camera_link_optical
+                                    -> left_wheel, right_wheel
+```
+
+`odom -> base_footprint` is the wheel odometry from Gazebo's DiffDrive system; the wheels turn with
+the joint states Gazebo publishes; the rest is fixed. Images and detections are stamped in
+`camera_link_optical`, so TF can place any detection relative to the robot or in `odom`.
+
 ## The detector
 
 `aruco_detector` subscribes to a camera image and its calibration, and for every frame publishes:
@@ -34,24 +48,29 @@ which prints how each one is seen from the starting pose every time it regenerat
 - `/aruco/image`: the frame with each marker outlined, its axes drawn, and its id, distance and
   viewing angle;
 - `/aruco/detections` (`aruco_interfaces/MarkerDetectionArray`): id, pose, distance and viewing
-  angle of every marker, with the image's stamp and frame.
+  angle of every marker, with the image's stamp and frame;
+- `/aruco/markers` (`visualization_msgs/MarkerArray`): each detected marker as a panel with its id,
+  for RViz.
 
 It knows nothing about the simulation: remap `image` and `camera_info` to any camera.
 
 ## Architecture
 
 ```
-Gazebo camera -> ros_gz_bridge -> /camera/image, /camera/camera_info
-                                        |
-                                        v
-                                 aruco_detector -> /aruco/image -> rqt_image_view
-                                        |
-                                        +-------> /aruco/detections
+camera_bot.urdf.xacro -> robot_state_publisher -> /robot_description, TF
+                                |
+                                v
+Gazebo (spawns the robot) -> ros_gz_bridge -> /camera/image, /camera/camera_info, /odom,
+                                              /tf (odom -> base_footprint), /joint_states, /clock
+                                                     |
+                                                     v
+                                              aruco_detector -> /aruco/image, /aruco/detections,
+                                                                /aruco/markers -> RViz
 ```
 
 | Package | Build type | Holds |
 |---|---|---|
-| `aruco_world` | ament_cmake | world generator, robot, Gazebo bridge, launch |
+| `aruco_world` | ament_cmake | world generator, robot URDF, Gazebo bridge, launch, RViz view |
 | `aruco_detector` | ament_python | the detection node, its core without ROS, and tests |
 | `aruco_interfaces` | ament_cmake | the `MarkerDetection` and `MarkerDetectionArray` messages |
 
@@ -63,22 +82,31 @@ Gazebo camera -> ros_gz_bridge -> /camera/image, /camera/camera_info
   marker is a one-line change.
 - **One model per marker**, a thin panel with the marker and its white quiet zone as a texture,
   so the same id can be placed anywhere with `<include>`.
+- **One description of the robot.** The URDF drives both Gazebo and TF, so the camera that renders
+  the images and the frame that places the detections cannot drift apart. The frames follow
+  REP 105 and REP 103, and Gazebo stamps the camera's images in the optical frame. The SDF in
+  `models/camera_bot/` is kept for reference only.
+- **One source for what the world defines.** `build_world.py` writes the detector's parameters and
+  the robot's start pose next to the markers. The node's parameters have no defaults: a missing
+  size stops it at start-up instead of silently scaling every distance.
 - **The detector is its own package** and does not depend on the simulation, so the same node runs
   on a real camera topic. The simulation's launch starts it and remaps its inputs.
-- **One source for the marker size.** `build_world.py` writes the detector's parameters
-  (`aruco_world/config/aruco_markers.yaml`) next to the markers. The node's parameters have no
-  defaults: a missing size stops it at start-up instead of silently scaling every distance.
 - **A detection core without ROS** (`aruco_detector/aruco_detector/detection.py`), tested on
   synthetic images rendered from known poses, on OpenCV 4.6 (Ubuntu 24.04) and on the current
   release (CI). Both ArUco APIs are supported, chosen once at start-up.
 - **Subpixel corners and SQPnP.** The pose comes from four corners, so they are refined to subpixel
   precision; SQPnP is globally optimal, so it returns the pose that best fits them and never flips
   a marker to face away from the camera.
-- **Messages follow REP 103** (metres and radians), with poses in the camera optical frame.
-- **QoS:** the subscriptions use the sensor profile (late frames are dropped, not queued); the
-  publishers keep the default reliable profile, so any viewer can subscribe.
-- **Plain SDF for the robot**, with Gazebo's DiffDrive system and camera sensor, bridged to
-  standard ROS 2 topics. A URDF with `robot_state_publisher` is the natural next step.
+- **Simulated time where the clock is read.** `robot_state_publisher` and RViz run on Gazebo's
+  clock; the detector only copies each image's stamp, so it stays off `/clock`, which arrives at
+  every physics step.
+- **RViz shows only what is in view.** Each marker message starts by deleting the previous frame's
+  markers, rather than letting them expire after a guessed time.
+- **Gazebo's server and window run apart**, so losing the window never stops the simulation or
+  the camera.
+- **Messages follow REP 103** (metres and radians). The subscriptions use the sensor QoS profile
+  (late frames are dropped, not queued); the publishers keep the default reliable profile, so any
+  viewer can subscribe.
 
 ## Limitations
 
@@ -90,7 +118,10 @@ Gazebo camera -> ros_gz_bridge -> /camera/image, /camera/camera_info
   distance still is.
 - Detection uses OpenCV's default parameters on purpose, so small, oblique markers near the
   reading limit come and go, as they would with a stock detector.
-- Poses are in the camera optical frame; without a TF tree they are not placed in the room yet.
+- Simulated wheels do not slip, so odometry hardly drifts and markers placed in `odom` stay put;
+  a real robot's odometry drifts.
+- On modest hardware the simulation runs slower than real time, and the camera's rate drops with
+  it.
 
 ## Quickstart
 
@@ -105,7 +136,8 @@ source install/setup.bash
 ros2 launch aruco_world world.launch.py
 ```
 
-`detector:=false` shows the raw camera instead; `image_view:=false` opens no window.
+It opens Gazebo and RViz. Launch arguments: `gz_gui:=false` (RViz only, lighter), `rviz:=false`,
+`image_view:=true` (a separate camera window), `detector:=false` (raw camera only).
 
 Drive it from another terminal (keys `i`, `j`, `l`, `,`, `k`), and watch the detections from a third:
 
@@ -115,6 +147,16 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 ```bash
 ros2 topic echo /aruco/detections
+```
+
+Look at the frames:
+
+```bash
+ros2 run tf2_ros tf2_echo odom camera_link_optical
+```
+
+```bash
+ros2 run tf2_tools view_frames
 ```
 
 Run the detector on any other camera:
@@ -146,10 +188,12 @@ ruff check . && pytest -q aruco_detector/test
 
 ```
 aruco_world/           simulation package
-  config/              Gazebo bridge; detector parameters (generated)
+  config/              Gazebo bridge; detector parameters and robot start (generated)
   launch/              world.launch.py
-  models/              camera_bot (hand-written) and aruco_<id> (generated)
+  models/              aruco_<id> (generated); camera_bot, the robot's SDF, for reference
+  rviz/                aruco_world.rviz
   scripts/             build_world.py (generator), camera_snapshot.py
+  urdf/                camera_bot.urdf.xacro, the robot
   worlds/              aruco_room.sdf (generated)
 aruco_detector/        detection package
   aruco_detector/      detection.py (no ROS), node.py

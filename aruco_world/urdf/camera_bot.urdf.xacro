@@ -1,0 +1,195 @@
+<?xml version="1.0"?>
+<!--
+  Generic differential drive robot with a forward-facing camera. Gazebo spawns the robot from this
+  description and robot_state_publisher turns it into TF.
+
+  Frames follow REP 105 and REP 103: base_footprint on the floor under the wheel axle, base_link at
+  the centre of the body, both with x forward, y left, z up. camera_link_optical is the camera's
+  optical frame (z forward, x right, y down): images and detections are stamped in it.
+-->
+<robot name="camera_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Dimensions in metres, masses in kilograms -->
+  <xacro:property name="body_length" value="0.36"/>
+  <xacro:property name="body_width" value="0.24"/>
+  <xacro:property name="body_height" value="0.08"/>
+  <xacro:property name="body_z" value="0.09"/>  <!-- body centre above the floor -->
+  <xacro:property name="body_mass" value="4.0"/>
+  <xacro:property name="wheel_radius" value="0.05"/>
+  <xacro:property name="wheel_width" value="0.035"/>
+  <xacro:property name="wheel_separation" value="0.28"/>
+  <xacro:property name="wheel_mass" value="0.3"/>
+  <xacro:property name="caster_radius" value="0.025"/>
+  <xacro:property name="caster_x" value="0.14"/>
+  <xacro:property name="camera_x" value="0.17"/>
+  <xacro:property name="camera_z" value="0.25"/>  <!-- lens above the floor -->
+  <xacro:property name="camera_mass" value="0.05"/>
+
+  <material name="body"><color rgba="0.15 0.35 0.6 1"/></material>
+  <material name="dark"><color rgba="0.1 0.1 0.1 1"/></material>
+  <material name="grey"><color rgba="0.3 0.3 0.3 1"/></material>
+
+  <!-- Solid box inertia about its centre -->
+  <xacro:macro name="box_inertia" params="mass x y z">
+    <inertial>
+      <mass value="${mass}"/>
+      <inertia ixx="${mass / 12 * (y**2 + z**2)}" ixy="0" ixz="0"
+               iyy="${mass / 12 * (x**2 + z**2)}" iyz="0"
+               izz="${mass / 12 * (x**2 + y**2)}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- A sphere under the body that slides on the floor: visual and collision of base_link -->
+  <xacro:macro name="caster" params="x">
+    <visual>
+      <origin xyz="${x} 0 ${caster_radius - body_z}" rpy="0 0 0"/>
+      <geometry><sphere radius="${caster_radius}"/></geometry>
+      <material name="grey"/>
+    </visual>
+    <collision>
+      <origin xyz="${x} 0 ${caster_radius - body_z}" rpy="0 0 0"/>
+      <geometry><sphere radius="${caster_radius}"/></geometry>
+    </collision>
+  </xacro:macro>
+
+  <!-- ===================== Base ===================== -->
+
+  <link name="base_footprint"/>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${body_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- base_link's visuals and collisions stay unnamed: when Gazebo merges base_link into
+       base_footprint through the fixed joint, it names them after the link, and that name is what
+       the friction below is matched against. -->
+  <link name="base_link">
+    <xacro:box_inertia mass="${body_mass}" x="${body_length}" y="${body_width}" z="${body_height}"/>
+    <visual>
+      <geometry><box size="${body_length} ${body_width} ${body_height}"/></geometry>
+      <material name="body"/>
+    </visual>
+    <collision>
+      <geometry><box size="${body_length} ${body_width} ${body_height}"/></geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.15 0 0.09" rpy="0 0 0"/>
+      <geometry><box size="0.03 0.03 0.10"/></geometry>
+      <material name="grey"/>
+    </visual>
+    <xacro:caster x="${caster_x}"/>
+    <xacro:caster x="${-caster_x}"/>
+  </link>
+
+  <!-- Only the casters touch the floor from the base, and they must slide. -->
+  <gazebo reference="base_link">
+    <mu1>0.0</mu1>
+    <mu2>0.0</mu2>
+  </gazebo>
+
+  <!-- ===================== Wheels ===================== -->
+
+  <xacro:macro name="wheel" params="side y">
+    <link name="${side}_wheel">
+      <inertial>
+        <mass value="${wheel_mass}"/>
+        <inertia ixx="${wheel_mass / 12 * (3 * wheel_radius**2 + wheel_width**2)}" ixy="0" ixz="0"
+                 iyy="${wheel_mass / 12 * (3 * wheel_radius**2 + wheel_width**2)}" iyz="0"
+                 izz="${wheel_mass / 2 * wheel_radius**2}"/>
+      </inertial>
+      <visual>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        <material name="dark"/>
+      </visual>
+      <collision>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </collision>
+    </link>
+    <!-- The cylinder's axis is its z: rolled to point along y, the joint turns about it. -->
+    <joint name="${side}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${side}_wheel"/>
+      <origin xyz="0 ${y} ${wheel_radius - body_z}" rpy="${-pi / 2} 0 0"/>
+      <axis xyz="0 0 1"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:wheel side="left" y="${wheel_separation / 2}"/>
+  <xacro:wheel side="right" y="${-wheel_separation / 2}"/>
+
+  <!-- ===================== Camera ===================== -->
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="${camera_x} 0 ${camera_z - body_z}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="camera_link">
+    <xacro:box_inertia mass="${camera_mass}" x="0.03" y="0.08" z="0.03"/>
+    <visual>
+      <geometry><box size="0.03 0.08 0.03"/></geometry>
+      <material name="dark"/>
+    </visual>
+  </link>
+
+  <!-- Optical frame: z along the line of sight, x right and y down in the image. -->
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_link_optical"/>
+    <origin xyz="0 0 0" rpy="${-pi / 2} 0 ${-pi / 2}"/>
+  </joint>
+
+  <link name="camera_link_optical"/>
+
+  <gazebo reference="camera_link">
+    <sensor name="front_camera" type="camera">
+      <always_on>true</always_on>
+      <update_rate>15</update_rate>
+      <visualize>true</visualize>
+      <topic>/camera/image</topic>
+      <gz_frame_id>camera_link_optical</gz_frame_id>
+      <camera>
+        <horizontal_fov>1.0472</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>20</far>
+        </clip>
+        <camera_info_topic>/camera/camera_info</camera_info_topic>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- ===================== Gazebo systems ===================== -->
+
+  <gazebo>
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      <wheel_separation>${wheel_separation}</wheel_separation>
+      <wheel_radius>${wheel_radius}</wheel_radius>
+      <topic>/cmd_vel</topic>
+      <odom_topic>/odom</odom_topic>
+      <tf_topic>/tf</tf_topic>
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_footprint</child_frame_id>
+      <odom_publish_frequency>30</odom_publish_frequency>
+      <max_linear_velocity>0.6</max_linear_velocity>
+      <max_angular_velocity>1.5</max_angular_velocity>
+      <max_linear_acceleration>1.0</max_linear_acceleration>
+      <max_angular_acceleration>2.0</max_angular_acceleration>
+    </plugin>
+    <plugin filename="gz-sim-joint-state-publisher-system"
+            name="gz::sim::systems::JointStatePublisher">
+      <topic>/joint_states</topic>
+    </plugin>
+  </gazebo>
+
+</robot>

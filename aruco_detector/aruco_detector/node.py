@@ -9,6 +9,8 @@ Publishes:
         label with its id, distance and viewing angle.
     aruco/detections (aruco_interfaces/MarkerDetectionArray): id, pose, distance and viewing angle
         of every marker in the frame, with the image's header.
+    aruco/markers (visualization_msgs/MarkerArray): each detected marker as a panel with its id,
+        for RViz; every message replaces the previous one.
 
 Parameters, both required: a wrong marker size would silently scale every distance, so there is no
 default to fall back on.
@@ -18,15 +20,19 @@ default to fall back on.
 
 from __future__ import annotations
 
+import signal
+
 import numpy as np
 import rclpy
 from cv_bridge import CvBridge
+from geometry_msgs.msg import Pose
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import CameraInfo, Image
-from std_msgs.msg import Header
+from std_msgs.msg import ColorRGBA, Header
+from visualization_msgs.msg import Marker, MarkerArray
 
 from aruco_detector.detection import (
     Detection,
@@ -35,6 +41,11 @@ from aruco_detector.detection import (
     quaternion_from_rvec,
 )
 from aruco_interfaces.msg import MarkerDetection, MarkerDetectionArray
+
+# How a detected marker looks in RViz
+PANEL_THICKNESS_M = 0.01
+PANEL_COLOR = ColorRGBA(r=0.2, g=0.85, b=0.35, a=0.9)
+LABEL_COLOR = ColorRGBA(r=1.0, g=1.0, b=1.0, a=1.0)
 
 
 class ArucoDetectorNode(Node):
@@ -65,6 +76,7 @@ class ArucoDetectorNode(Node):
         # Default QoS is reliable, which every subscriber accepts.
         self.image_pub = self.create_publisher(Image, "aruco/image", 10)
         self.detections_pub = self.create_publisher(MarkerDetectionArray, "aruco/detections", 10)
+        self.markers_pub = self.create_publisher(MarkerArray, "aruco/markers", 10)
 
     def on_camera_info(self, msg: CameraInfo) -> None:
         # Fixed-size array fields such as k (float64[9]) arrive as numpy arrays.
@@ -88,6 +100,7 @@ class ArucoDetectorNode(Node):
             self.get_logger().warn("no camera_info yet: outlines only, no poses", once=True)
         else:
             self.detections_pub.publish(self.detections_msg(msg.header, detections))
+            self.markers_pub.publish(self.markers_msg(msg.header, detections))
         self.log_changes(detections)
 
     def detections_msg(self, header: Header, detections: list[Detection]) -> MarkerDetectionArray:
@@ -96,16 +109,46 @@ class ArucoDetectorNode(Node):
         for d in detections:
             marker = MarkerDetection()
             marker.id = d.marker_id
-            position = marker.pose.position
-            position.x, position.y, position.z = (float(v) for v in d.tvec)
-            orientation = marker.pose.orientation
-            orientation.x, orientation.y, orientation.z, orientation.w = quaternion_from_rvec(
-                d.rvec
-            )
+            marker.pose = self.pose_msg(d)
             marker.distance = d.distance
             marker.viewing_angle = d.viewing_angle
             array.markers.append(marker)
         return array
+
+    def markers_msg(self, header: Header, detections: list[Detection]) -> MarkerArray:
+        """RViz markers for one frame: each detected marker as a panel, with its id above it.
+
+        The first entry deletes the previous frame's markers, so RViz shows only what is in view
+        without guessing how long a marker should linger.
+        """
+        markers = [Marker(header=header, action=Marker.DELETEALL)]
+        for d in detections:
+            pose = self.pose_msg(d)
+            panel = Marker(header=header, ns="panels", id=d.marker_id, type=Marker.CUBE, pose=pose)
+            panel.scale.x = panel.scale.y = self.marker_length
+            panel.scale.z = PANEL_THICKNESS_M
+            panel.color = PANEL_COLOR
+
+            label = Marker(header=header, ns="ids", id=d.marker_id, type=Marker.TEXT_VIEW_FACING)
+            label.text = str(d.marker_id)
+            label.pose.position.x = pose.position.x
+            # One marker side above the panel: up in the image is -y in the optical frame.
+            label.pose.position.y = pose.position.y - self.marker_length
+            label.pose.position.z = pose.position.z
+            label.scale.z = self.marker_length  # text height
+            label.color = LABEL_COLOR
+            markers += [panel, label]
+        return MarkerArray(markers=markers)
+
+    @staticmethod
+    def pose_msg(d: Detection) -> Pose:
+        """A detection's pose as a message: position from tvec, orientation from rvec."""
+        pose = Pose()
+        position = pose.position
+        position.x, position.y, position.z = (float(v) for v in d.tvec)
+        orientation = pose.orientation
+        orientation.x, orientation.y, orientation.z, orientation.w = quaternion_from_rvec(d.rvec)
+        return pose
 
     def log_changes(self, detections: list[Detection]) -> None:
         """Log the ids in view only when they change, so the log reads as markers coming and going."""
@@ -116,8 +159,6 @@ class ArucoDetectorNode(Node):
 
 
 def main(args: list[str] | None = None) -> None:
-    # Ctrl+C under ros2 launch reaches a node twice: from the terminal and forwarded by launch. The
-    # second one can land during the cleanup, so the outer try covers the cleanup too.
     try:
         rclpy.init(args=args)
         node = ArucoDetectorNode()
@@ -129,6 +170,10 @@ def main(args: list[str] | None = None) -> None:
             if rclpy.ok():
                 raise
         finally:
+            # Ctrl+C under ros2 launch reaches a node twice: from the terminal and forwarded by
+            # launch. Once shutting down, the repeat is ignored so it cannot cut the cleanup or,
+            # later, the interpreter's exit; launch can still end a stuck node with SIGTERM.
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
             node.destroy_node()
             rclpy.try_shutdown()
     except (KeyboardInterrupt, ExternalShutdownException):

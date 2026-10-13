@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <!--
+  Standalone SDF of the robot, kept for reference: the world launch does not use it. It spawns the
+  robot from urdf/camera_bot.urdf.xacro, which also gives ROS its TF. Change both together.
+
   Generic differential drive robot with a forward-facing camera.
 
   Frame: X forward, Y left, Z up, origin on the floor under the wheel axle.
