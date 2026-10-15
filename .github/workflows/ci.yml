@@ -13,12 +13,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # Only what runs without ROS: lint everything, test the detection, localization and guard
-      # cores. OpenCV is left unpinned on purpose: Ubuntu's 4.6 is covered by local runs, CI covers
-      # the current API.
+      # Only what runs without ROS: lint everything, test the cores of every Python package. OpenCV
+      # is left unpinned on purpose: Ubuntu's 4.6 is covered by local runs, CI covers the current
+      # API.
       - run: pip install ruff==0.16.10 pytest numpy opencv-python-headless
       - run: ruff check .
       # One run per package, so each finds its own setup.cfg and import path.
       - run: pytest -q aruco_detector/test
       - run: pytest -q aruco_localization/test
+      - run: pytest -q noisy_odometry/test
       - run: pytest -q scan_guard/test

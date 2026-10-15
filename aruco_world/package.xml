@@ -11,8 +11,9 @@
 
   <exec_depend>aruco_detector</exec_depend>
   <exec_depend>aruco_localization</exec_depend>
+  <exec_depend>noisy_odometry</exec_depend>
+  <exec_depend>robot_localization</exec_depend>
   <exec_depend>scan_guard</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>

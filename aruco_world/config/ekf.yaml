@@ -1,0 +1,77 @@
+# robot_localization as two filters, the usual split in ROS (REP 105):
+# - ekf_local fuses the drifting wheel odometry with the gyro. Its pose in odom is smooth and never
+#   jumps, but it drifts. It publishes odom -> base_footprint.
+# - ekf_global fuses the same plus the marker fixes. Its pose in map does not drift, but it moves
+#   when a fix corrects it. It publishes map -> odom: the drift the markers have found.
+# Both treat the floor as flat and run on the simulation's clock. The launch sets ekf_global's
+# starting state to the robot's start pose.
+#
+# Each *_config lists what to fuse from that input, in this order:
+#   x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az
+
+ekf_local:
+  ros__parameters:
+    frequency: 30.0
+    two_d_mode: true
+    publish_tf: true
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_footprint
+    world_frame: odom
+
+    # Wheel odometry: forward speed, turn rate, and a sideways speed of zero, which a differential
+    # drive cannot avoid.
+    odom0: /wheel/odometry
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  true,  false,
+                   false, false, true,
+                   false, false, false]
+
+    # The gyro's turn rate only.
+    imu0: /imu
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+
+ekf_global:
+  ros__parameters:
+    frequency: 30.0
+    two_d_mode: true
+    publish_tf: true
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_footprint
+    world_frame: map
+
+    odom0: /wheel/odometry
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  true,  false,
+                   false, false, true,
+                   false, false, false]
+
+    imu0: /imu
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+
+    # Marker fixes: position and heading in the map.
+    pose0: /aruco/robot_pose
+    pose0_config: [true,  true,  false,
+                   false, false, true,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false]
+    # A fix too far from where odometry and the gyro put the robot is dropped. The threshold is a
+    # Mahalanobis distance, so it scales with how uncertain both are.
+    pose0_rejection_threshold: 5.0
+
+    # A fix arrives a camera frame and a detection after its image was taken: the filter goes back
+    # to the image's time to apply it, keeping this many seconds of history.
+    smooth_lagged_data: true
+    history_length: 1.0

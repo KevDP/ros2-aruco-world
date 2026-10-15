@@ -1,0 +1,12 @@
+# How much error the simulated wheel odometry gathers, for noisy_odometry: moderate, like a low-cost
+# robot's. The errors are random and zero-mean, and spread with the motion as a random walk.
+noisy_odometry:
+  ros__parameters:
+    # Distance: about 3 cm of spread after 1 m and 6 cm after 4 m (variance per metre, m^2/m).
+    distance_var_per_m: 9.0e-4
+    # Heading: about 3 degrees of spread per full turn in place (rad^2/rad)...
+    heading_var_per_rad: 4.4e-4
+    # ...and about 1 degree per metre driven straight (rad^2/m).
+    heading_var_per_m: 3.0e-4
+    # -1 draws a new drift at every start; any other number repeats one.
+    seed: -1

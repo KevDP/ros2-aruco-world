@@ -1,9 +1,14 @@
-"""Room with ArUco markers, a robot with a camera and a lidar, the marker detector, the localizer
-that places the robot from the markers, the lidar guard and RViz.
+"""Room with ArUco markers, a robot with a camera, a lidar and an IMU, the marker detector, the
+localizer that places the robot from the markers, the filters that fuse it all, the lidar guard and
+RViz.
 
 The robot is described once, in urdf/camera_bot.urdf.xacro: robot_state_publisher publishes that
 description and the robot's TF, and Gazebo spawns the robot from the same description at the start
 pose that build_world.py writes. The map frame is Gazebo's world frame.
+
+Two robot_localization filters place the robot: ekf_local (drifting wheel odometry and gyro)
+publishes odom -> base_footprint, and ekf_global (the same plus the marker fixes) publishes
+map -> odom.
 
 With the guard on (the default), the robot obeys /cmd_vel_teleop through scan_guard, which owns
 /cmd_vel. Drive it with:
@@ -138,19 +143,36 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(LaunchConfiguration("detector")),
     )
 
-    # Odometry starts where the robot was spawned and, in this simulation, does not drift: until a
-    # filter estimates it, map -> odom is just the start pose.
-    map_to_odom = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        arguments=[
-            "--x", str(start["x"]),
-            "--y", str(start["y"]),
-            "--yaw", str(start["yaw"]),
-            "--frame-id", "map",
-            "--child-frame-id", "odom",
-        ],
-    )  # fmt: skip
+    # Gazebo's wheel odometry is nearly exact; this gives it the drift a real robot's has.
+    noisy_odometry = Node(
+        package="noisy_odometry",
+        executable="noisy_odometry",
+        name="noisy_odometry",
+        parameters=[os.path.join(share, "config", "noisy_odometry.yaml")],
+        remappings=[("odom_exact", "/sim/wheel_odometry"), ("odom", "/wheel/odometry")],
+        output="screen",
+    )
+
+    # The two filters share one file. The global one starts where the robot was spawned, the local
+    # one at its own origin, like the odometry.
+    ekf = os.path.join(share, "config", "ekf.yaml")
+    start_state = [start["x"], start["y"], 0.0, 0.0, 0.0, start["yaw"]] + [0.0] * 9
+    ekf_local = Node(
+        package="robot_localization",
+        executable="ekf_node",
+        name="ekf_local",
+        parameters=[ekf, SIM_TIME],
+        remappings=[("odometry/filtered", "/odometry/local")],
+        output="screen",
+    )
+    ekf_global = Node(
+        package="robot_localization",
+        executable="ekf_node",
+        name="ekf_global",
+        parameters=[ekf, SIM_TIME, {"initial_state": [float(v) for v in start_state]}],
+        remappings=[("odometry/filtered", "/odometry/global")],
+        output="screen",
+    )
 
     # Marker poses in the map come from the file build_world.py generates with the markers.
     localizer = Node(
@@ -217,7 +239,9 @@ def generate_launch_description() -> LaunchDescription:
             robot_state_publisher,
             spawn,
             bridge,
-            map_to_odom,
+            noisy_odometry,
+            ekf_local,
+            ekf_global,
             detector,
             localizer,
             guard,

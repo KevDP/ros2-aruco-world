@@ -78,6 +78,61 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
       Value: true
+    # Where Gazebo says the robot is (green) and where the global filter puts it (blue): the gap
+    # between the two trails is the estimate's error.
+    - Class: rviz_default_plugins/Odometry
+      Name: Truth
+      Enabled: true
+      Topic:
+        Value: /ground_truth
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Keep: 300
+      Position Tolerance: 0.1
+      Angle Tolerance: 0.2
+      Shape:
+        Value: Arrow
+        Color: 40; 200; 70
+        Alpha: 1
+        Shaft Length: 0.25
+        Shaft Radius: 0.015
+        Head Length: 0.06
+        Head Radius: 0.035
+      Covariance:
+        Value: false
+      Value: true
+    - Class: rviz_default_plugins/Odometry
+      Name: Estimate
+      Enabled: true
+      Topic:
+        Value: /odometry/global
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Keep: 300
+      Position Tolerance: 0.1
+      Angle Tolerance: 0.2
+      Shape:
+        Value: Arrow
+        Color: 60; 120; 255
+        Alpha: 1
+        Shaft Length: 0.25
+        Shaft Radius: 0.015
+        Head Length: 0.06
+        Head Radius: 0.035
+      Covariance:
+        Value: true
+        Position:
+          Value: true
+          Alpha: 0.3
+          Color: 60; 120; 255
+          Scale: 1
+        Orientation:
+          Value: false
+      Value: true
     - Class: rviz_default_plugins/LaserScan
       Name: Lidar
       Enabled: true

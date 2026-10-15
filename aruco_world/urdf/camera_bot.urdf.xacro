@@ -1,12 +1,13 @@
 <?xml version="1.0"?>
 <!--
-  Generic differential drive robot with a forward-facing camera and a 360-degree 2D lidar on a mast.
-  Gazebo spawns the robot from this description and robot_state_publisher turns it into TF.
+  Generic differential drive robot with a forward-facing camera, a 360-degree 2D lidar on a mast and
+  an IMU. Gazebo spawns the robot from this description and robot_state_publisher turns it into TF.
 
   Frames follow REP 105 and REP 103: base_footprint on the floor under the wheel axle, base_link at
   the centre of the body, both with x forward, y left, z up. camera_link_optical is the camera's
   optical frame (z forward, x right, y down): images and detections are stamped in it. lidar_link
-  is the centre of the scan plane, and scans are stamped in it.
+  is the centre of the scan plane, and scans are stamped in it. imu_link sits at the centre of the
+  body, aligned with it.
 -->
 <robot name="camera_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
@@ -42,6 +43,14 @@
   <!-- The datasheets give +-3 cm without saying what it bounds; read here as three standard
        deviations. -->
   <xacro:property name="lidar_noise_stddev" value="0.01"/>
+
+  <!-- A low-cost MEMS IMU, of which the filters use only the gyro. Its noise per sample at 100 Hz
+       comes from a rate noise density of about 0.005 deg/s/sqrt(Hz); its bias is what is left after
+       a start-up calibration, drawn anew at every start. -->
+  <xacro:property name="imu_rate" value="100"/>
+  <xacro:property name="gyro_noise_stddev" value="0.0009"/>  <!-- rad/s -->
+  <xacro:property name="gyro_bias_stddev" value="0.001"/>  <!-- rad/s -->
+  <xacro:property name="accel_noise_stddev" value="0.02"/>  <!-- m/s^2 -->
 
   <material name="body"><color rgba="0.15 0.35 0.6 1"/></material>
   <material name="dark"><color rgba="0.1 0.1 0.1 1"/></material>
@@ -253,6 +262,50 @@
     </sensor>
   </gazebo>
 
+  <!-- ===================== IMU ===================== -->
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="imu_link">
+    <xacro:box_inertia mass="0.01" x="0.02" y="0.02" z="0.005"/>
+  </link>
+
+  <xacro:macro name="imu_noise" params="stddev bias_stddev">
+    <noise type="gaussian">
+      <mean>0</mean>
+      <stddev>${stddev}</stddev>
+      <bias_mean>0</bias_mean>
+      <bias_stddev>${bias_stddev}</bias_stddev>
+    </noise>
+  </xacro:macro>
+
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <always_on>true</always_on>
+      <update_rate>${imu_rate}</update_rate>
+      <topic>/imu</topic>
+      <gz_frame_id>imu_link</gz_frame_id>
+      <imu>
+        <!-- A real gyro gives no orientation of its own; Gazebo's would be the true one. -->
+        <enable_orientation>false</enable_orientation>
+        <angular_velocity>
+          <x><xacro:imu_noise stddev="${gyro_noise_stddev}" bias_stddev="${gyro_bias_stddev}"/></x>
+          <y><xacro:imu_noise stddev="${gyro_noise_stddev}" bias_stddev="${gyro_bias_stddev}"/></y>
+          <z><xacro:imu_noise stddev="${gyro_noise_stddev}" bias_stddev="${gyro_bias_stddev}"/></z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x><xacro:imu_noise stddev="${accel_noise_stddev}" bias_stddev="0"/></x>
+          <y><xacro:imu_noise stddev="${accel_noise_stddev}" bias_stddev="0"/></y>
+          <z><xacro:imu_noise stddev="${accel_noise_stddev}" bias_stddev="0"/></z>
+        </linear_acceleration>
+      </imu>
+    </sensor>
+  </gazebo>
+
   <!-- ===================== Gazebo systems ===================== -->
 
   <gazebo>
@@ -262,8 +315,10 @@
       <wheel_separation>${wheel_separation}</wheel_separation>
       <wheel_radius>${wheel_radius}</wheel_radius>
       <topic>/cmd_vel</topic>
-      <odom_topic>/odom</odom_topic>
-      <tf_topic>/tf</tf_topic>
+      <!-- Gazebo's own wheel odometry is nearly exact: noisy_odometry adds the drift a real robot
+           has, and the local filter publishes odom -> base_footprint, so none of this reaches /tf. -->
+      <odom_topic>/sim/wheel_odometry</odom_topic>
+      <tf_topic>/sim/wheel_odometry/tf</tf_topic>
       <frame_id>odom</frame_id>
       <child_frame_id>base_footprint</child_frame_id>
       <odom_publish_frequency>30</odom_publish_frequency>
