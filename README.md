@@ -1,8 +1,9 @@
 # ros2-aruco-world
 
-A Gazebo room with ArUco markers in different places and poses, a small robot with a camera, and a
-ROS 2 node that detects the markers live and places them around the robot in RViz. Built to see
-what a robot camera actually gets from a marker as distance and viewing angle change.
+A Gazebo room with ArUco markers in different places and poses, a small robot with a camera and a
+2D lidar, a ROS 2 node that detects the markers live and places them around the robot in RViz, and
+a guard that stops the robot before it drives into what the lidar sees. Built to see what a robot
+camera actually gets from a marker as distance and viewing angle change.
 
 ROS 2 Jazzy, Gazebo Harmonic, Ubuntu 24.04 (tested under WSL2 on Windows 11).
 
@@ -34,12 +35,14 @@ publishes that description and its TF, and Gazebo spawns the robot from the same
 
 ```
 odom -> base_footprint -> base_link -> camera_link -> camera_link_optical
+                                    -> lidar_link
                                     -> left_wheel, right_wheel
 ```
 
 `odom -> base_footprint` is the wheel odometry from Gazebo's DiffDrive system; the wheels turn with
 the joint states Gazebo publishes; the rest is fixed. Images and detections are stamped in
-`camera_link_optical`, so TF can place any detection relative to the robot or in `odom`.
+`camera_link_optical` and scans in `lidar_link`, so TF can place any of them relative to the robot
+or in `odom`.
 
 ## The detector
 
@@ -54,18 +57,43 @@ the joint states Gazebo publishes; the rest is fixed. Images and detections are 
 
 It knows nothing about the simulation: remap `image` and `camera_info` to any camera.
 
+## The lidar and the guard
+
+A 360-degree 2D lidar sits on a mast above the camera, so nothing on the robot blocks its view.
+Gazebo renders it with the datasheet numbers of two common low-cost time-of-flight units, taking
+the less favourable one where they differ: 500 rays per turn, 10 turns per second, 0.05 to 12 m,
+about 1 cm of range noise.
+
+`scan_guard` sits between whoever drives and the robot. It reads the driver's command on
+`/cmd_vel_teleop` and the scan on `/scan`, and it owns `/cmd_vel`:
+
+- an obstacle in the **stop zone**, just past the robot's leading edge, stops the robot, and the
+  command is dropped, so the robot stays put after the obstacle leaves until it is driven again;
+- an obstacle in the **slow zone**, further out, caps the speed;
+- both zones are as wide as the robot plus a margin, and only the direction of travel is checked,
+  so a robot blocked ahead can still back away;
+- with no recent scan, it sends zero velocity.
+
+It also publishes the zones on `/scan_guard/zones` for RViz, faint while clear and solid while
+something is in them.
+
 ## Architecture
 
 ```
 camera_bot.urdf.xacro -> robot_state_publisher -> /robot_description, TF
                                 |
                                 v
-Gazebo (spawns the robot) -> ros_gz_bridge -> /camera/image, /camera/camera_info, /odom,
+Gazebo (spawns the robot) -> ros_gz_bridge -> /camera/image, /camera/camera_info, /scan, /odom,
                                               /tf (odom -> base_footprint), /joint_states, /clock
                                                      |
                                                      v
                                               aruco_detector -> /aruco/image, /aruco/detections,
                                                                 /aruco/markers -> RViz
+
+teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridge -> Gazebo
+                                        |
+                                        v
+                                  /scan_guard/zones -> RViz
 ```
 
 | Package | Build type | Holds |
@@ -73,6 +101,7 @@ Gazebo (spawns the robot) -> ros_gz_bridge -> /camera/image, /camera/camera_info
 | `aruco_world` | ament_cmake | world generator, robot URDF, Gazebo bridge, launch, RViz view |
 | `aruco_detector` | ament_python | the detection node, its core without ROS, and tests |
 | `aruco_interfaces` | ament_cmake | the `MarkerDetection` and `MarkerDetectionArray` messages |
+| `scan_guard` | ament_python | the lidar guard node, its decision core without ROS, and tests |
 
 ## Key technical decisions
 
@@ -107,6 +136,18 @@ Gazebo (spawns the robot) -> ros_gz_bridge -> /camera/image, /camera/camera_info
 - **Messages follow REP 103** (metres and radians). The subscriptions use the sensor QoS profile
   (late frames are dropped, not queued); the publishers keep the default reliable profile, so any
   viewer can subscribe.
+- **The guard owns `/cmd_vel`.** The robot's base listens on `/cmd_vel`, and anything that can veto
+  a command sits just before it; drivers publish on their own topic. Adding a planner later means
+  remapping its output, not touching the guard or the bridge.
+- **No data, no motion.** Without a recent scan, or before TF says where the lidar sits, the guard
+  sends zero velocity. It measures scan age in wall time, so a paused simulation holds the robot
+  too.
+- **A stop is latched; a slowdown is not.** A robot stopped by something in its way does not set
+  off again by itself when the way clears.
+- **One source for the robot's size.** The launch reads the guard's outline of the robot from the
+  URDF's properties; only the zone sizes live in `config/scan_guard.yaml`.
+- **A guard core without ROS** (`scan_guard/scan_guard/guard.py`), tested on synthetic scans with
+  obstacles at known positions; the node only feeds it and publishes what it decides.
 
 ## Limitations
 
@@ -120,8 +161,17 @@ Gazebo (spawns the robot) -> ros_gz_bridge -> /camera/image, /camera/camera_info
   reading limit come and go, as they would with a stock detector.
 - Simulated wheels do not slip, so odometry hardly drifts and markers placed in `odom` stay put;
   a real robot's odometry drifts.
-- On modest hardware the simulation runs slower than real time, and the camera's rate drops with
-  it.
+- On modest hardware the simulation runs slower than real time, and the camera's and lidar's rates
+  drop with it.
+- The simulated lidar is ideal apart from range noise: dark or glossy surfaces return as well as
+  any other, glass and mirrors behave like walls, sunlight never blinds it, and each scan is taken
+  at one instant instead of over a turn while the robot moves. Those are what a real unit has to be
+  tested on.
+- A 2D lidar sees one plane, 0.30 m above the floor here: anything lower, like the floor marker, or
+  overhanging is invisible to it.
+- The guard is a teaching example, not a certified safety function. Turning in place is not
+  checked, and an obstacle must return at least `min_points` rays to count, which a thin object
+  far away may not (rays are 1.3 cm apart at 1 m).
 
 ## Quickstart
 
@@ -137,16 +187,26 @@ ros2 launch aruco_world world.launch.py
 ```
 
 It opens Gazebo and RViz. Launch arguments: `gz_gui:=false` (RViz only, lighter), `rviz:=false`,
-`image_view:=true` (a separate camera window), `detector:=false` (raw camera only).
+`image_view:=true` (a separate camera window), `detector:=false` (raw camera only), `guard:=false`
+(no lidar guard).
 
-Drive it from another terminal (keys `i`, `j`, `l`, `,`, `k`), and watch the detections from a third:
+Drive it from another terminal (keys `i`, `j`, `l`, `,`, `k`). The guard listens on
+`/cmd_vel_teleop`, so teleop is remapped there:
 
 ```bash
-ros2 run teleop_twist_keyboard teleop_twist_keyboard
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=cmd_vel_teleop
 ```
+
+With `guard:=false`, drop the remap and teleop drives `/cmd_vel` directly.
+
+Watch the detections and the lidar from other terminals:
 
 ```bash
 ros2 topic echo /aruco/detections
+```
+
+```bash
+ros2 topic hz /scan
 ```
 
 Look at the frames:
@@ -177,18 +237,18 @@ After editing a placement in `build_world.py`, regenerate and rebuild (from the 
 cd aruco_world && python3 scripts/build_world.py && cd ~/ros2_ws && colcon build --symlink-install
 ```
 
-Lint and test without ROS:
+Lint and test without ROS (one pytest run per package, so each finds its own settings):
 
 ```bash
 pip install ruff pytest numpy opencv-python-headless
-ruff check . && pytest -q aruco_detector/test
+ruff check . && pytest -q aruco_detector/test && pytest -q scan_guard/test
 ```
 
 ## Repository structure
 
 ```
 aruco_world/           simulation package
-  config/              Gazebo bridge; detector parameters and robot start (generated)
+  config/              Gazebo bridge, guard zones; detector parameters and robot start (generated)
   launch/              world.launch.py
   models/              aruco_<id> (generated); camera_bot, the robot's SDF, for reference
   rviz/                aruco_world.rviz
@@ -199,5 +259,8 @@ aruco_detector/        detection package
   aruco_detector/      detection.py (no ROS), node.py
   test/                detection tests on synthetic images
 aruco_interfaces/      MarkerDetection and MarkerDetectionArray
-.github/workflows/     CI: ruff and the detection tests
+scan_guard/            lidar guard package
+  scan_guard/          guard.py (no ROS), node.py
+  test/                guard tests on synthetic scans
+.github/workflows/     CI: ruff, the detection tests and the guard tests
 ```

@@ -1,19 +1,26 @@
-"""Room with ArUco markers, a robot with a camera, the marker detector and RViz.
+"""Room with ArUco markers, a robot with a camera and a lidar, the marker detector, the lidar guard
+and RViz.
 
 The robot is described once, in urdf/camera_bot.urdf.xacro: robot_state_publisher publishes that
 description and the robot's TF, and Gazebo spawns the robot from the same description at the start
 pose that build_world.py writes.
+
+With the guard on (the default), the robot obeys /cmd_vel_teleop through scan_guard, which owns
+/cmd_vel. Drive it with:
+    ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=cmd_vel_teleop
 
 Usage:
     ros2 launch aruco_world world.launch.py
     ros2 launch aruco_world world.launch.py detector:=false                 # raw camera only
     ros2 launch aruco_world world.launch.py rviz:=false image_view:=true    # camera window only
     ros2 launch aruco_world world.launch.py gz_gui:=false                   # RViz only, lighter
+    ros2 launch aruco_world world.launch.py guard:=false                    # teleop on /cmd_vel
 """
 
 from __future__ import annotations
 
 import os
+import xml.etree.ElementTree as ET
 
 import xacro
 import yaml
@@ -41,6 +48,20 @@ def _enabled(name: str, context: LaunchContext) -> bool:
     return LaunchConfiguration(name).perform(context).lower() in ("true", "1")
 
 
+def _footprint(urdf_xacro: str) -> dict[str, float]:
+    """The robot's outline for scan_guard, from the properties the URDF builds the robot with.
+
+    Front and rear are half the body's length; the half width reaches the outer face of the wheels
+    when they stick out past the body.
+    """
+    tag = "{http://www.ros.org/wiki/xacro}property"
+    props = {e.get("name"): e.get("value") for e in ET.parse(urdf_xacro).getroot().iter(tag)}
+    half_length = float(props["body_length"]) / 2
+    wheels = float(props["wheel_separation"]) / 2 + float(props["wheel_width"]) / 2
+    half_width = max(float(props["body_width"]) / 2, wheels)
+    return {"front": half_length, "rear": half_length, "half_width": half_width}
+
+
 def _image_view(context: LaunchContext) -> list[Node]:
     """The camera window: the detector's annotated image when it runs, the raw camera otherwise."""
     if not _enabled("image_view", context):
@@ -52,7 +73,8 @@ def _image_view(context: LaunchContext) -> list[Node]:
 def generate_launch_description() -> LaunchDescription:
     share = get_package_share_directory("aruco_world")
     world = os.path.join(share, "worlds", "aruco_room.sdf")
-    description = xacro.process_file(os.path.join(share, "urdf", "camera_bot.urdf.xacro")).toxml()
+    urdf = os.path.join(share, "urdf", "camera_bot.urdf.xacro")
+    description = xacro.process_file(urdf).toxml()
     with open(os.path.join(share, "config", "robot_start.yaml")) as f:
         start = yaml.safe_load(f)
 
@@ -116,6 +138,22 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(LaunchConfiguration("detector")),
     )
 
+    # The guard sits between the driver and the robot: it reads the driver's command and owns the
+    # robot's /cmd_vel. Zone sizes come from its YAML, the robot's outline from the URDF.
+    guard = Node(
+        package="scan_guard",
+        executable="guard",
+        name="scan_guard",
+        parameters=[os.path.join(share, "config", "scan_guard.yaml"), _footprint(urdf)],
+        remappings=[
+            ("scan", "/scan"),
+            ("cmd_vel_in", "/cmd_vel_teleop"),
+            ("cmd_vel_out", "/cmd_vel"),
+        ],
+        output="screen",
+        condition=IfCondition(LaunchConfiguration("guard")),
+    )
+
     rviz = Node(
         package="rviz2",
         executable="rviz2",
@@ -140,6 +178,11 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument(
                 "gz_gui", default_value="true", description="Open Gazebo's own window"
             ),
+            DeclareLaunchArgument(
+                "guard",
+                default_value="true",
+                description="Guard the robot with the lidar: drive on /cmd_vel_teleop",
+            ),
             # Gazebo finds the markers through model:// URIs.
             AppendEnvironmentVariable("GZ_SIM_RESOURCE_PATH", os.path.join(share, "models")),
             gazebo_server,
@@ -148,6 +191,7 @@ def generate_launch_description() -> LaunchDescription:
             spawn,
             bridge,
             detector,
+            guard,
             rviz,
             OpaqueFunction(function=_image_view),
         ]
