@@ -1,9 +1,9 @@
-"""Room with ArUco markers, a robot with a camera and a lidar, the marker detector, the lidar guard
-and RViz.
+"""Room with ArUco markers, a robot with a camera and a lidar, the marker detector, the localizer
+that places the robot from the markers, the lidar guard and RViz.
 
 The robot is described once, in urdf/camera_bot.urdf.xacro: robot_state_publisher publishes that
 description and the robot's TF, and Gazebo spawns the robot from the same description at the start
-pose that build_world.py writes.
+pose that build_world.py writes. The map frame is Gazebo's world frame.
 
 With the guard on (the default), the robot obeys /cmd_vel_teleop through scan_guard, which owns
 /cmd_vel. Drive it with:
@@ -138,6 +138,33 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(LaunchConfiguration("detector")),
     )
 
+    # Odometry starts where the robot was spawned and, in this simulation, does not drift: until a
+    # filter estimates it, map -> odom is just the start pose.
+    map_to_odom = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--x", str(start["x"]),
+            "--y", str(start["y"]),
+            "--yaw", str(start["yaw"]),
+            "--frame-id", "map",
+            "--child-frame-id", "odom",
+        ],
+    )  # fmt: skip
+
+    # Marker poses in the map come from the file build_world.py generates with the markers.
+    localizer = Node(
+        package="aruco_localization",
+        executable="localizer",
+        name="aruco_localizer",
+        parameters=[
+            os.path.join(share, "config", "marker_map.yaml"),
+            os.path.join(share, "config", "aruco_localizer.yaml"),
+        ],
+        output="screen",
+        condition=IfCondition(LaunchConfiguration("detector")),
+    )
+
     # The guard sits between the driver and the robot: it reads the driver's command and owns the
     # robot's /cmd_vel. Zone sizes come from its YAML, the robot's outline from the URDF.
     guard = Node(
@@ -190,7 +217,9 @@ def generate_launch_description() -> LaunchDescription:
             robot_state_publisher,
             spawn,
             bridge,
+            map_to_odom,
             detector,
+            localizer,
             guard,
             rviz,
             OpaqueFunction(function=_image_view),

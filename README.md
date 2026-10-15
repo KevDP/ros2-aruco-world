@@ -1,9 +1,10 @@
 # ros2-aruco-world
 
 A Gazebo room with ArUco markers in different places and poses, a small robot with a camera and a
-2D lidar, a ROS 2 node that detects the markers live and places them around the robot in RViz, and
-a guard that stops the robot before it drives into what the lidar sees. Built to see what a robot
-camera actually gets from a marker as distance and viewing angle change.
+2D lidar, a ROS 2 node that detects the markers live and places them around the robot in RViz, a
+node that places the robot in the map from the markers it sees, and a guard that stops the robot
+before it drives into what the lidar sees. Built to see what a robot camera actually gets from a
+marker as distance and viewing angle change.
 
 ROS 2 Jazzy, Gazebo Harmonic, Ubuntu 24.04 (tested under WSL2 on Windows 11).
 
@@ -34,15 +35,20 @@ The robot is described once, in `aruco_world/urdf/camera_bot.urdf.xacro`. `robot
 publishes that description and its TF, and Gazebo spawns the robot from the same description.
 
 ```
-odom -> base_footprint -> base_link -> camera_link -> camera_link_optical
-                                    -> lidar_link
-                                    -> left_wheel, right_wheel
+map -> odom -> base_footprint -> base_link -> camera_link -> camera_link_optical
+                                           -> lidar_link
+                                           -> left_wheel, right_wheel
 ```
 
-`odom -> base_footprint` is the wheel odometry from Gazebo's DiffDrive system; the wheels turn with
-the joint states Gazebo publishes; the rest is fixed. Images and detections are stamped in
-`camera_link_optical` and scans in `lidar_link`, so TF can place any of them relative to the robot
-or in `odom`.
+`map` is Gazebo's world frame, the one the markers are placed in. `map -> odom` is the robot's
+start pose, published once: the simulated odometry barely drifts, so that holds until a filter
+estimates it. `odom -> base_footprint` is the wheel odometry from Gazebo's DiffDrive system; the
+wheels turn with the joint states Gazebo publishes; the rest is fixed. Images and detections are
+stamped in `camera_link_optical` and scans in `lidar_link`, so TF can place any of them relative to
+the robot or in the map.
+
+For checking estimates, Gazebo also publishes the robot's true pose in the map on `/ground_truth`
+(`nav_msgs/Odometry`). It never reaches `/tf`, so no node can use it as a sensor.
 
 ## The detector
 
@@ -56,6 +62,32 @@ or in `odom`.
   for RViz.
 
 It knows nothing about the simulation: remap `image` and `camera_info` to any camera.
+
+## Where the markers put the robot
+
+`aruco_localization` turns each detected marker whose place is known into a fix of the robot's pose
+in the map: the marker's pose in the map, composed with the inverse of where the camera saw it and
+the inverse of where the camera sits on the robot. The robot drives on the floor, so a fix keeps x,
+y and heading.
+
+Each fix carries a covariance that grows with distance, unevenly. The distance to a marker is
+measured well and its orientation less so, and an orientation error swings the camera around the
+marker: the fix spreads across the line of sight by the distance times the angle. Markers beyond a
+distance limit give no fix at all, because a small marker seen nearly head-on has an ambiguous
+orientation and its fix can land metres away.
+
+It publishes:
+
+- `/aruco/robot_pose` (`geometry_msgs/PoseWithCovarianceStamped`): one fix per marker in range,
+  stamped like its image, ready for a filter to fuse;
+- `/aruco/robot_pose_markers` (`visualization_msgs/MarkerArray`): the fixes as arrows with their
+  2-sigma ellipses, for RViz;
+- `/aruco/marker_map` (`visualization_msgs/MarkerArray`): where the map says each marker is,
+  latched.
+
+The marker map is generated with the world, in `aruco_world/config/marker_map.yaml`; the distance
+limit and the spread are in `aruco_world/config/aruco_localizer.yaml`. Each fix stands alone here:
+fusing them with the odometry is the next step.
 
 ## The lidar and the guard
 
@@ -84,11 +116,18 @@ camera_bot.urdf.xacro -> robot_state_publisher -> /robot_description, TF
                                 |
                                 v
 Gazebo (spawns the robot) -> ros_gz_bridge -> /camera/image, /camera/camera_info, /scan, /odom,
-                                              /tf (odom -> base_footprint), /joint_states, /clock
+                                              /tf (odom -> base_footprint), /joint_states, /clock,
+                                              /ground_truth (checking only)
                                                      |
                                                      v
-                                              aruco_detector -> /aruco/image, /aruco/detections,
-                                                                /aruco/markers -> RViz
+                                              aruco_detector -> /aruco/image, /aruco/markers -> RViz
+                                                     |
+                                                     v /aruco/detections
+                                              aruco_localizer (marker map, TF)
+                                                     -> /aruco/robot_pose
+                                                     -> /aruco/robot_pose_markers, /aruco/marker_map -> RViz
+
+static map -> odom (the start pose)
 
 teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridge -> Gazebo
                                         |
@@ -101,6 +140,7 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
 | `aruco_world` | ament_cmake | world generator, robot URDF, Gazebo bridge, launch, RViz view |
 | `aruco_detector` | ament_python | the detection node, its core without ROS, and tests |
 | `aruco_interfaces` | ament_cmake | the `MarkerDetection` and `MarkerDetectionArray` messages |
+| `aruco_localization` | ament_python | the localizer node, its pose and covariance core without ROS, and tests |
 | `scan_guard` | ament_python | the lidar guard node, its decision core without ROS, and tests |
 
 ## Key technical decisions
@@ -115,9 +155,15 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
   the images and the frame that places the detections cannot drift apart. The frames follow
   REP 105 and REP 103, and Gazebo stamps the camera's images in the optical frame. The SDF in
   `models/camera_bot/` is kept for reference only.
-- **One source for what the world defines.** `build_world.py` writes the detector's parameters and
-  the robot's start pose next to the markers. The node's parameters have no defaults: a missing
-  size stops it at start-up instead of silently scaling every distance.
+- **One source for what the world defines.** `build_world.py` writes the detector's parameters,
+  the marker map and the robot's start pose next to the markers. The nodes' parameters have no
+  defaults: a missing size stops the detector at start-up instead of silently scaling every
+  distance, and a missing marker stops the localizer.
+- **Wheels touch the floor at one point.** Their collision shape is a sphere, not the cylinder they
+  are drawn as: a cylinder touches the floor along its rim's edges, and turning on the inner edges
+  shrinks the wheel separation the odometry assumes.
+- **The truth stays out of `/tf`.** Gazebo's true pose of the robot goes to `/ground_truth`, which
+  only checks estimates; nothing the robot runs reads it.
 - **The detector is its own package** and does not depend on the simulation, so the same node runs
   on a real camera topic. The simulation's launch starts it and remaps its inputs.
 - **A detection core without ROS** (`aruco_detector/aruco_detector/detection.py`), tested on
@@ -148,6 +194,11 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
   URDF's properties; only the zone sizes live in `config/scan_guard.yaml`.
 - **A guard core without ROS** (`scan_guard/scan_guard/guard.py`), tested on synthetic scans with
   obstacles at known positions; the node only feeds it and publishes what it decides.
+- **A localizer core without ROS** (`aruco_localization/aruco_localization/localization.py`),
+  tested on detections computed from known robot poses. Each fix is a planar pose with its own
+  covariance, so a filter can weigh near and far markers without knowing where they came from.
+- **One fix per marker, not an average.** Fusing belongs to a filter that also knows the odometry;
+  averaging here would hide which marker said what.
 
 ## Limitations
 
@@ -172,6 +223,13 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
 - The guard is a teaching example, not a certified safety function. Turning in place is not
   checked, and an obstacle must return at least `min_points` rays to count, which a thin object
   far away may not (rays are 1.3 cm apart at 1 m).
+- Each marker fix stands alone: with no marker in range the robot has no fix, and nothing smooths
+  the fixes over time.
+- A fix's covariance leaves out the link between its sideways spread and its heading error, which
+  come from the same orientation error, so it counts one marker as a little more informative than
+  it is.
+- Distances from the detector carry a small bias here, larger on oblique markers; the localizer's
+  covariance is wide enough to cover it instead of correcting it.
 
 ## Quickstart
 
@@ -199,20 +257,30 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=cmd_
 
 With `guard:=false`, drop the remap and teleop drives `/cmd_vel` directly.
 
-Watch the detections and the lidar from other terminals:
+Watch the detections, the marker fixes and the lidar from other terminals:
 
 ```bash
 ros2 topic echo /aruco/detections
 ```
 
 ```bash
+ros2 topic echo /aruco/robot_pose --field pose.pose.position
+```
+
+```bash
 ros2 topic hz /scan
+```
+
+Compare a fix with where the robot really is:
+
+```bash
+ros2 topic echo /ground_truth --field pose.pose.position
 ```
 
 Look at the frames:
 
 ```bash
-ros2 run tf2_ros tf2_echo odom camera_link_optical
+ros2 run tf2_ros tf2_echo map camera_link_optical
 ```
 
 ```bash
@@ -241,14 +309,15 @@ Lint and test without ROS (one pytest run per package, so each finds its own set
 
 ```bash
 pip install ruff pytest numpy opencv-python-headless
-ruff check . && pytest -q aruco_detector/test && pytest -q scan_guard/test
+ruff check . && pytest -q aruco_detector/test && pytest -q aruco_localization/test && pytest -q scan_guard/test
 ```
 
 ## Repository structure
 
 ```
 aruco_world/           simulation package
-  config/              Gazebo bridge, guard zones; detector parameters and robot start (generated)
+  config/              Gazebo bridge, guard zones, localizer limits; detector parameters, marker
+                       map and robot start (generated)
   launch/              world.launch.py
   models/              aruco_<id> (generated); camera_bot, the robot's SDF, for reference
   rviz/                aruco_world.rviz
@@ -259,8 +328,11 @@ aruco_detector/        detection package
   aruco_detector/      detection.py (no ROS), node.py
   test/                detection tests on synthetic images
 aruco_interfaces/      MarkerDetection and MarkerDetectionArray
+aruco_localization/    localization package
+  aruco_localization/  localization.py (no ROS), node.py
+  test/                localization tests on detections from known poses
 scan_guard/            lidar guard package
   scan_guard/          guard.py (no ROS), node.py
   test/                guard tests on synthetic scans
-.github/workflows/     CI: ruff, the detection tests and the guard tests
+.github/workflows/     CI: ruff and the detection, localization and guard tests
 ```
