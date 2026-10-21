@@ -79,8 +79,8 @@ NEAR_AND_FAR = [(0, 1.0), (40, 1.0), (0, 2.5), (60, 2.5), (0, 5.0)]
 def test_distance_matches_the_rendered_marker(turn_deg: float, distance: float):
     detection = _detect_one(turn_deg, distance)
 
-    # The distance scales with the marker's side in pixels, so allow one pixel of that side; a
-    # wrong marker size, camera matrix or corner order misses by far more.
+    # The distance scales with the marker's side in pixels, and the tolerance is one pixel of that
+    # side. A wrong marker size, camera matrix or corner order misses by far more.
     side_px = FOCAL_PX * MARKER_LENGTH / distance
     assert detection.distance == pytest.approx(distance, rel=1 / side_px)
 
@@ -93,9 +93,9 @@ def test_marker_always_faces_the_camera(turn_deg: float, distance: float):
 
 @pytest.mark.parametrize(("turn_deg", "distance"), [(0, 1.0), (40, 1.0), (60, 2.5)])
 def test_viewing_angle_where_it_is_observable(turn_deg: float, distance: float):
-    # A tilt shows only as perspective, which shrinks with the square of the distance: a far,
-    # nearly head-on marker carries too little of it, so the angle is checked near or oblique. A
-    # wrong axis convention misses by tens of degrees.
+    # A tilt shows only as perspective, which shrinks with the square of the distance. A far marker
+    # seen nearly head-on carries too little of it, and the angle is checked only near or oblique.
+    # A wrong axis convention misses by tens of degrees.
     viewing_angle = math.degrees(_detect_one(turn_deg, distance).viewing_angle)
     assert viewing_angle == pytest.approx(turn_deg, abs=5)
 

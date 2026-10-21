@@ -1,12 +1,9 @@
-# robot_localization as two filters, the usual split in ROS (REP 105):
-# - ekf_local fuses the drifting wheel odometry with the gyro. Its pose in odom is smooth and never
-#   jumps, but it drifts. It publishes odom -> base_footprint.
-# - ekf_global fuses the same plus the marker fixes. Its pose in map does not drift, but it moves
-#   when a fix corrects it. It publishes map -> odom: the drift the markers have found.
-# Both treat the floor as flat and run on the simulation's clock. The launch sets ekf_global's
-# starting state to the robot's start pose.
+# Two robot_localization filters, split as REP 105 describes. ekf_local (wheel odometry and gyro)
+# publishes odom -> base_footprint, and ekf_global (the same plus the marker fixes) publishes
+# map -> odom. Both assume a flat floor and run on the simulation's clock. The launch gives
+# ekf_global the robot's start pose as its initial state.
 #
-# Each *_config lists what to fuse from that input, in this order:
+# Each *_config row picks what to fuse from that input, in robot_localization's order:
 #   x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az
 
 ekf_local:
@@ -19,8 +16,8 @@ ekf_local:
     base_link_frame: base_footprint
     world_frame: odom
 
-    # Wheel odometry: forward speed, turn rate, and a sideways speed of zero, which a differential
-    # drive cannot avoid.
+    # Wheel odometry: forward speed, turn rate, and a sideways speed of zero, since a differential
+    # drive cannot move sideways.
     odom0: /wheel/odometry
     odom0_config: [false, false, false,
                    false, false, false,
@@ -67,11 +64,11 @@ ekf_global:
                    false, false, false,
                    false, false, false,
                    false, false, false]
-    # A fix too far from where odometry and the gyro put the robot is dropped. The threshold is a
-    # Mahalanobis distance, so it scales with how uncertain both are.
+    # Mahalanobis distance from the current estimate beyond which a fix is dropped. It scales with
+    # how uncertain the estimate and the fix are.
     pose0_rejection_threshold: 5.0
 
-    # A fix arrives a camera frame and a detection after its image was taken: the filter goes back
-    # to the image's time to apply it, keeping this many seconds of history.
+    # Fixes carry their image's stamp and arrive late. Keep a second of history to apply each one
+    # at the time it belongs to.
     smooth_lagged_data: true
     history_length: 1.0

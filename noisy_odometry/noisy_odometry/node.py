@@ -10,8 +10,8 @@ Publishes:
 
 Parameters:
     distance_var_per_m, heading_var_per_rad, heading_var_per_m (double, required): how much error
-        gathers per unit of motion; see drift.DriftModel.
-    seed (int, default -1): a fixed seed repeats the same drift; -1 draws a new one at every start.
+        gathers per unit of motion (see drift.DriftModel).
+    seed (int, default -1): a fixed seed gives the same drift on every run, -1 a new one each time.
     odom_frame (string, default odom), base_frame (string, default base_footprint).
 """
 
@@ -29,8 +29,8 @@ from rclpy.parameter import Parameter
 
 from noisy_odometry.drift import DriftingOdometry, DriftModel, Pose2D
 
-# A step with no motion has no error, but a filter cannot take a zero variance: this is the floor
-# for a stopped robot's speeds, (m/s)^2 and (rad/s)^2.
+# Floor for the speed variances of a stopped robot, (m/s)^2 and (rad/s)^2. A step with no motion
+# has no error, and a filter cannot take a zero variance.
 MIN_SPEED_VARIANCE = 1e-6
 # The robot cannot move sideways, and the filter is told so with a tight variance, (m/s)^2.
 SIDEWAYS_VARIANCE = 1e-6
@@ -44,7 +44,7 @@ class NoisyOdometryNode(Node):
     def __init__(self) -> None:
         super().__init__("noisy_odometry")
 
-        # Declared with a type and no default: get_parameter stops the node here if one is missing.
+        # The three variances are required: get_parameter raises at start-up if one is unset.
         for name in ("distance_var_per_m", "heading_var_per_rad", "heading_var_per_m"):
             self.declare_parameter(name, Parameter.Type.DOUBLE)
         self.declare_parameter("seed", -1)
@@ -107,19 +107,16 @@ class NoisyOdometryNode(Node):
 
 
 def main(args: list[str] | None = None) -> None:
+    # Starts and shuts down like aruco_detector's main(), whose comments explain both guards.
     try:
         rclpy.init(args=args)
         node = NoisyOdometryNode()
         try:
             rclpy.spin(node)
         except RuntimeError:
-            # rclpy can fail to take a message that arrives while it shuts down; that is not an
-            # error. While it is still running, it is.
             if rclpy.ok():
                 raise
         finally:
-            # Ctrl+C under ros2 launch reaches a node twice; once shutting down, the repeat is
-            # ignored so it cannot cut the cleanup (same as aruco_detector).
             signal.signal(signal.SIGINT, signal.SIG_IGN)
             node.destroy_node()
             rclpy.try_shutdown()

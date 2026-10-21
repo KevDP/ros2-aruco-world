@@ -3,16 +3,16 @@
   Generic differential drive robot with a forward-facing camera, a 360-degree 2D lidar on a mast and
   an IMU. Gazebo spawns the robot from this description and robot_state_publisher turns it into TF.
 
-  Frames follow REP 105 and REP 103: base_footprint on the floor under the wheel axle, base_link at
-  the centre of the body, both with x forward, y left, z up. camera_link_optical is the camera's
-  optical frame (z forward, x right, y down): images and detections are stamped in it. lidar_link
-  is the centre of the scan plane, and scans are stamped in it. imu_link sits at the centre of the
-  body, aligned with it.
+  Frames follow REP 105 and REP 103. base_footprint is on the floor under the wheel axle and
+  base_link at the centre of the body, both with x forward, y left and z up. Images and detections
+  are stamped in camera_link_optical, the camera's optical frame (z forward, x right, y down), and
+  scans in lidar_link, at the centre of the scan plane. imu_link sits at the centre of the body,
+  aligned with it.
 -->
 <robot name="camera_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- The wheels' collision shape: "sphere" (the default, see the wheel macro) or "cylinder", the
-       shape they are drawn as, kept to compare the two. -->
+  <!-- The wheels' collision shape: "sphere" by default (see the wheel macro), or "cylinder", the
+       shape they are drawn as. -->
   <xacro:arg name="wheel_collision" default="sphere"/>
 
   <!-- Dimensions in metres, masses in kilograms -->
@@ -30,7 +30,7 @@
   <xacro:property name="camera_x" value="0.17"/>
   <xacro:property name="camera_z" value="0.25"/>  <!-- lens above the floor -->
   <xacro:property name="camera_mass" value="0.05"/>
-  <!-- The scan plane sits above the camera, so nothing on the robot blocks any direction. -->
+  <!-- The scan plane sits above the camera, clear of everything else on the robot. -->
   <xacro:property name="lidar_z" value="0.30"/>
   <xacro:property name="lidar_radius" value="0.025"/>
   <xacro:property name="lidar_height" value="0.035"/>
@@ -43,20 +43,20 @@
   <xacro:property name="max_acceleration" value="1.0"/>
   <xacro:property name="max_turn_acceleration" value="2.0"/>
 
-  <!-- A low-cost 360-degree time-of-flight lidar, from the datasheets of two common ones: 5,000
-       samples per second at 10 turns per second, so 500 rays 0.72 degrees apart. Where they
-       differ, the less favourable value is used, so what works here should work with either. -->
+  <!-- A low-cost 360-degree time-of-flight lidar, from the datasheets of two common units. 5,000
+       samples per second at 10 turns per second give 500 rays, 0.72 degrees apart. Where the two
+       differ, the less favourable value is used, and what works here should work with either. -->
   <xacro:property name="lidar_rate" value="10"/>
   <xacro:property name="lidar_samples" value="500"/>
   <xacro:property name="lidar_range_min" value="0.05"/>
   <xacro:property name="lidar_range_max" value="12.0"/>
-  <!-- The datasheets give +-3 cm without saying what it bounds; read here as three standard
+  <!-- The datasheets give +-3 cm without saying what it bounds. It is read here as three standard
        deviations. -->
   <xacro:property name="lidar_noise_stddev" value="0.01"/>
 
   <!-- A low-cost MEMS IMU, of which the filters use only the gyro. Its noise per sample at 100 Hz
-       comes from a rate noise density of about 0.005 deg/s/sqrt(Hz); its bias is what is left after
-       a start-up calibration, drawn anew at every start. -->
+       comes from a rate noise density of about 0.005 deg/s/sqrt(Hz). Its bias is what a start-up
+       calibration leaves, drawn again at every start. -->
   <xacro:property name="imu_rate" value="100"/>
   <xacro:property name="gyro_noise_stddev" value="0.0009"/>  <!-- rad/s -->
   <xacro:property name="gyro_bias_stddev" value="0.001"/>  <!-- rad/s -->
@@ -99,9 +99,9 @@
     <origin xyz="0 0 ${body_z}" rpy="0 0 0"/>
   </joint>
 
-  <!-- base_link's visuals and collisions stay unnamed: when Gazebo merges base_link into
-       base_footprint through the fixed joint, it names them after the link, and that name is what
-       the friction below is matched against. -->
+  <!-- base_link's visuals and collisions stay unnamed. Gazebo merges base_link into
+       base_footprint through the fixed joint and names them after the link, the name the friction
+       below is matched against. -->
   <link name="base_link">
     <xacro:box_inertia mass="${body_mass}" x="${body_length}" y="${body_width}" z="${body_height}"/>
     <visual>
@@ -149,9 +149,9 @@
         <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
         <material name="dark"/>
       </visual>
-      <!-- A sphere, not the cylinder: a cylinder touches the floor along its rim's edges, and
-           turning on the inner edges shrinks the wheel separation the odometry assumes. A sphere
-           touches at one point, right under the wheel's centre. -->
+      <!-- Spheres by default. A sphere touches the floor under the hub, the point DiffDrive's
+           wheel_separation is measured between. A cylinder pivots on its inner rim edges when
+           turning in place, as if the wheels were closer together. -->
       <collision>
         <xacro:if value="${'$(arg wheel_collision)' == 'sphere'}">
           <geometry><sphere radius="${wheel_radius}"/></geometry>
@@ -305,7 +305,7 @@
       <topic>/imu</topic>
       <gz_frame_id>imu_link</gz_frame_id>
       <imu>
-        <!-- A real gyro gives no orientation of its own; Gazebo's would be the true one. -->
+        <!-- A real gyro gives no orientation. Gazebo's would be the true heading. -->
         <enable_orientation>false</enable_orientation>
         <angular_velocity>
           <x><xacro:imu_noise stddev="${gyro_noise_stddev}" bias_stddev="${gyro_bias_stddev}"/></x>
@@ -330,16 +330,16 @@
       <wheel_separation>${wheel_separation}</wheel_separation>
       <wheel_radius>${wheel_radius}</wheel_radius>
       <topic>/cmd_vel</topic>
-      <!-- Gazebo's own wheel odometry is nearly exact: noisy_odometry adds the drift a real robot
-           has, and the local filter publishes odom -> base_footprint, so none of this reaches /tf. -->
+      <!-- Gazebo's own wheel odometry, nearly exact, goes to /sim topics. noisy_odometry adds
+           the drift a real robot has, and the local filter publishes odom -> base_footprint. -->
       <odom_topic>/sim/wheel_odometry</odom_topic>
       <tf_topic>/sim/wheel_odometry/tf</tf_topic>
       <frame_id>odom</frame_id>
       <child_frame_id>base_footprint</child_frame_id>
       <odom_publish_frequency>30</odom_publish_frequency>
-      <!-- Every limit on both sides: Gazebo's speed limiter leaves a bound it is not given at
-           infinity, so with the maximums alone, braking, reversing and turning right would be
-           instantaneous and unbounded. -->
+      <!-- gz::math::SpeedLimiter leaves each min_* at minus infinity unless it is set, not at
+           -max_*. Without them the robot would brake in one step and reverse or turn right at any
+           speed. -->
       <max_linear_velocity>${max_speed}</max_linear_velocity>
       <min_linear_velocity>${-max_speed}</min_linear_velocity>
       <max_angular_velocity>${max_turn_rate}</max_angular_velocity>
@@ -353,8 +353,8 @@
             name="gz::sim::systems::JointStatePublisher">
       <topic>/joint_states</topic>
     </plugin>
-    <!-- Ground truth, for checking estimates: the robot's true pose in the world, which is the map
-         frame. It goes to its own topics and never to /tf, so no node mistakes it for a sensor. -->
+    <!-- Ground truth for the experiments: the robot's true pose in the world frame, which is also
+         the map. Its transform goes to /ground_truth/tf, where nothing listens, never to /tf. -->
     <plugin filename="gz-sim-odometry-publisher-system"
             name="gz::sim::systems::OdometryPublisher">
       <odom_frame>map</odom_frame>

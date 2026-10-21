@@ -1,6 +1,6 @@
 """The world and the robot as the experiments see them, read from the files that define them.
 
-Nothing here needs ROS, so the reports run on any machine with NumPy and Matplotlib.
+Nothing here needs ROS. The reports that use it run with NumPy, Matplotlib and PyYAML alone.
 """
 
 from __future__ import annotations

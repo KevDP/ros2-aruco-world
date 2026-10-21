@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Generate the ArUco marker models and the room world from one description.
 
-Each marker is described by where it is and which way it faces; the script computes the rotation,
-writes one Gazebo model per marker (a thin panel with the marker texture) and the world file that
-places them, together with the room and a few props. It also writes the detector's parameters
-(dictionary and marker size), the marker map the localizer reads and the robot's start pose, so
-they come from the same place as the markers; the launch spawns the robot there from its URDF.
+Each marker is described by where it is and which way it faces. The script works out its rotation
+and writes one Gazebo model per marker (a thin panel with the marker texture), plus the world file
+that places them in the room with a few props. It also writes the detector's parameters
+(dictionary and marker size), the marker map the localizer reads and the robot's start pose. The
+launch reads those files instead of keeping copies of its own.
 
 Run it from the package root (aruco_world/) whenever a marker or the room changes:
     python3 scripts/build_world.py
@@ -37,24 +37,23 @@ MARKER_SIDE_M = 0.15  # black square
 BORDER_M = 0.025  # white quiet zone on each side, which detection needs
 PANEL_SIDE_M = MARKER_SIDE_M + 2 * BORDER_M
 PANEL_THICKNESS_M = 0.002
-PRINT_OFFSET_M = 0.0005  # the printed plane sits this far in front of the panel, so they never mix
+PRINT_OFFSET_M = 0.0005  # gap between the printed plane and the panel, against z-fighting
 PANEL_BACK_RGB = "0.85 0.85 0.85"  # plain card behind the print
 TEXTURE_MARKER_PX = 600
 TEXTURE_BORDER_PX = round(TEXTURE_MARKER_PX * BORDER_M / MARKER_SIDE_M)
 
-# Room: 8 x 8 m, walls 2.5 m high; the inner wall faces sit at +-ROOM_HALF.
+# An 8 x 8 m room with 2.5 m walls. The inner wall faces sit at +-ROOM_HALF.
 ROOM_HALF = 4.0
 WALL_HEIGHT = 2.5
 WALL_THICKNESS = 0.1
 
-ROBOT_START = (-1.5, 0.0, 0.0, 0.0)  # x, y, z, yaw in the world; the launch spawns the robot here
+ROBOT_START = (-1.5, 0.0, 0.0, 0.0)  # x, y, z, yaw in the world, where the launch spawns the robot
 
-# A plain box; marker 4 sits on its -X face, the one that looks back into the room.
+# A plain box. Marker 4 is on its -X face, which looks back into the room.
 BOX_CENTRE = (2.0, 2.4)
 BOX_SIZE = (0.6, 0.6, 0.8)
 
-# A post marker stands on a square post whose centre sits behind the panel, so the post never shows
-# in front of the marker.
+# The square post under each post marker. Its centre sits behind the panel, out of the marker's way.
 POST_SIDE_M = 0.04
 POST_SETBACK_M = 0.03
 
@@ -66,8 +65,8 @@ class Placement:
     Attributes:
         marker_id: ArUco id in DICT_4X4_50.
         position: Panel centre in metres.
-        facing: Direction the printed side looks at; normalised by the script.
-        mount: "post", "wall", "floor" or "box"; posts get a stand drawn under them.
+        facing: Direction the printed side looks at, normalised by the script.
+        mount: "post", "wall", "floor" or "box". Posts get a stand drawn under them.
         note: What this placement is meant to show.
     """
 
@@ -97,8 +96,8 @@ def _turned_from_robot(x: float, y: float, turn_deg: float) -> tuple[float, floa
 def _off_wall(down_deg: float = 0.0) -> float:
     """Distance from a wall to the centre of a panel on it, tilted down by ``down_deg``.
 
-    A panel tilts about its centre, so its lower edge swings toward the wall; this keeps that edge
-    touching the wall instead of sunk into it.
+    A panel tilts about its centre and its lower edge swings toward the wall. This distance keeps
+    that edge touching the wall instead of sunk into it.
     """
     down = math.radians(down_deg)
     return PANEL_SIDE_M / 2 * math.sin(down) + PANEL_THICKNESS_M / 2 * math.cos(down)
@@ -145,8 +144,8 @@ def _unit(v: np.ndarray) -> np.ndarray:
 def rotation_for(facing: tuple[float, float, float]) -> np.ndarray:
     """Rotation that turns the panel's +Z (printed side) toward ``facing``.
 
-    The marker's own +Y is kept as close to world up as possible, so wall markers stand upright;
-    a marker that faces straight up or down uses world +X instead.
+    The marker's own +Y stays as close to world up as possible, which keeps wall markers upright.
+    A marker facing straight up or down takes world +X as its up instead.
     """
     n = _unit(np.asarray(facing, dtype=float))
     up = np.array([0.0, 0.0, 1.0]) if abs(n[2]) < 0.99 else np.array([1.0, 0.0, 0.0])
@@ -158,7 +157,8 @@ def rotation_for(facing: tuple[float, float, float]) -> np.ndarray:
 def quaternion_from(rotation: np.ndarray) -> tuple[float, float, float, float]:
     """(x, y, z, w) of a rotation matrix, with w kept non-negative.
 
-    Built from the largest of the four candidates, so it stays accurate for any rotation.
+    The usual formula divides by sqrt(1 + trace), close to zero near a half turn. When the trace
+    is not positive, the formula built on the largest diagonal entry is used instead.
     """
     m = rotation
     trace = m[0, 0] + m[1, 1] + m[2, 2]
@@ -199,8 +199,8 @@ def _pose(x: float, y: float, z: float, roll: float = 0, pitch: float = 0, yaw: 
 def marker_texture(marker_id: int) -> np.ndarray:
     """The marker with its white quiet zone, as a grayscale image laid out for the panel.
 
-    Gazebo lays an image on a plane upright, the image's top toward the plane's +Y, so the
-    marker's own up matches the panel's +Y as written.
+    Gazebo lays an image on a plane with the image's top toward the plane's +Y. The marker's own
+    up then matches the panel's +Y and the image needs no rotation.
     """
     dictionary = cv2.aruco.getPredefinedDictionary(DICTIONARY)
     if hasattr(cv2.aruco, "generateImageMarker"):  # OpenCV 4.7 and later
@@ -219,9 +219,8 @@ def write_marker_model(marker_id: int) -> None:
 
     panel = PANEL_SIDE_M
     texture_uri = f"model://{name}/materials/textures/{name}.png"
-    # A box's material covers all six faces, so a textured box would carry the marker on its back
-    # too and be readable from behind. The marker is a one-sided plane just in front of the
-    # printed face; the panel behind it is plain.
+    # A box's material covers all six faces, and a textured box would carry the marker on its back
+    # as well, readable from behind. Here the marker is a one-sided plane in front of a plain panel.
     face_z = PANEL_THICKNESS_M / 2 + PRINT_OFFSET_M
     (folder / "model.config").write_text(
         f"""<?xml version="1.0"?>
@@ -387,7 +386,7 @@ def write_world() -> None:
 
 
 def write_detector_config() -> None:
-    """Detector parameters that must match these markers; the world launch passes them on."""
+    """Detector parameters that must match these markers, for the world launch to pass on."""
     DETECTOR_CONFIG.parent.mkdir(parents=True, exist_ok=True)
     DETECTOR_CONFIG.write_text(
         "# Generated by scripts/build_world.py: edit the script, not this file.\n"
@@ -422,7 +421,10 @@ def write_marker_map() -> None:
 
 
 def write_robot_start() -> None:
-    """Where the world launch spawns the robot, so the start pose is written in one place."""
+    """Where the world launch spawns the robot.
+
+    The start pose lives here because the post markers are turned relative to it.
+    """
     x, y, z, yaw = ROBOT_START
     ROBOT_START_CONFIG.parent.mkdir(parents=True, exist_ok=True)
     ROBOT_START_CONFIG.write_text(
@@ -440,7 +442,7 @@ def view_from_start(p: Placement) -> tuple[float, float, float]:
 
     Returns:
         (distance in metres, bearing in degrees with + to the left, angle in degrees between the
-        line of sight and the marker's facing direction; 0 is head-on, 90 is edge-on).
+        line of sight and the marker's facing direction, 0 head-on and 90 edge-on).
     """
     camera = np.array([ROBOT_START[0], ROBOT_START[1], CAMERA_HEIGHT_M])
     sight = camera - np.asarray(p.position, dtype=float)

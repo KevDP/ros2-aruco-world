@@ -8,8 +8,8 @@ shape) and writes, next to them:
     turning.gif  one turn trial per shape, played back: where the robot is and where it thinks it is
 
 It also prints what the odometry would report if each wheel pushed on the floor from the inner
-edge of its rim instead of its middle, from the URDF's wheel separation and width. Needs NumPy
-and Matplotlib only, no ROS:
+edge of its rim instead of its middle, from the URDF's wheel separation and width. Needs NumPy,
+Matplotlib and PyYAML, not ROS:
     python3 experiments/turning_report.py
 """
 
@@ -70,7 +70,7 @@ def _turned(shape: np.ndarray, heading: float) -> np.ndarray:
 
 
 def _trial_index(rows: list[dict[str, str]], rate: float) -> str:
-    """Trace number of the first left turn at ``rate``; traces number trials in file order."""
+    """Trace number of the first left turn at ``rate``, counting trials in file order."""
     for number, r in enumerate(rows):
         if r["kind"] == "turn" and float(r["command"]) == rate and int(r["direction"]) == 1:
             return str(number)
@@ -79,7 +79,7 @@ def _trial_index(rows: list[dict[str, str]], rate: float) -> str:
 
 def _animate(labels: list[str], trials: dict, traces: dict, props: dict, out: Path) -> None:
     """Play back one turn per wheel shape: the robot where Gazebo has it, solid, and where its
-    odometry puts it, dashed. Both turn about the same point, so only their headings differ."""
+    odometry puts it, dashed. Both turn about the same point and differ only in heading."""
     series = {}
     for label in labels:
         trial = _trial_index(trials[label], ANIMATED_RATE)
@@ -198,8 +198,8 @@ def main() -> None:
         lines.append(f"| {label} | " + " | ".join(cells) + " |")
     (args.results / "summary.md").write_text("\n".join(lines) + "\n")
 
-    # ---- heading.png: the heading error as the turn builds up, every turn trial. Each source has
-    # its own stamps, so the odometry is interpolated to the truth's instants before subtracting.
+    # ---- heading.png: the heading error as the turn builds up, every turn trial. The two sources
+    # have their own stamps, and the odometry is interpolated to the truth's before subtracting.
     fig, ax = plt.subplots(figsize=(7.2, 4.4))
     for label in labels:
         series: dict[tuple[str, str], list[tuple[float, float]]] = defaultdict(list)
@@ -216,7 +216,7 @@ def main() -> None:
                     color=COLOURS.get(label, plot_style.VIOLET), lw=1, alpha=0.6,
                     label=f"{label} wheels" if first else None)  # fmt: skip
             first = False
-    # The prediction goes on top, dashed, so it shows even where a measured line covers it.
+    # The prediction is drawn last and dashed, visible even over a measured line.
     longest = max(abs(float(r["true_turn"])) for rows in trials.values() for r in rows)
     turned = np.array([0.0, math.degrees(longest)])
     ax.plot(turned, (inner_edges - 1) * turned, "--", color=plot_style.TEXT, lw=1.2, zorder=3,

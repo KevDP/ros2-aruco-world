@@ -7,7 +7,7 @@ Reads poses.csv and detections.csv from experiments/visibility.py and writes, ne
     envelope.png  every marker read, by its true distance and viewing angle
 
 True distances and viewing angles come from the robot's true pose, the camera's place on the
-robot and the marker map, not from the detector. Needs NumPy and Matplotlib only, no ROS:
+robot and the marker map, not from the detector. Needs NumPy, Matplotlib and PyYAML, not ROS:
     python3 experiments/visibility_report.py
 """
 
@@ -30,8 +30,8 @@ from world import RESULTS, load_world, robot_properties
 MAX_POSE_ERROR_M = 0.02  # a pose that landed further than this from the command is reported
 MAX_YAW_ERROR_DEG = 1.0
 LABEL_BOX = {"boxstyle": "round,pad=0.15", "fc": plot_style.BACKGROUND, "ec": "none", "alpha": 0.8}
-# Map colours from "nothing read" up; nothing read stays lighter than the background, where the
-# robot cannot stand.
+# Map colours from "nothing read" up. Even "nothing read" is lighter than the background, which
+# marks where the robot cannot stand.
 MAP_COLOURS = ["#334155", "#164e63", "#0e7490", "#06b6d4", "#67e8f9", "#cffafe"]
 CASE_COLOURS = {
     "posts": plot_style.CYAN,
@@ -136,7 +136,7 @@ def main() -> None:
     for d in detections:
         marker_id = int(d["marker"])
         if marker_id not in placements:
-            continue  # a misread id; reported below
+            continue  # a misread id, reported below
         pose = by_pose[d["pose"]]
         ids_at[spot_of[d["pose"]]].add(marker_id)
         placement = placements[marker_id]

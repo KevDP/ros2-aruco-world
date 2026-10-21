@@ -27,7 +27,7 @@ from world import RESULTS, load_world, robot_properties
 # Robot poses to look from: name, x, y, heading in degrees.
 VIEWS = (("start", -1.5, 0.0, 0.0), ("turned toward the box", -1.5, 0.0, 37.0))
 UPSCALE = 2
-KEEP_ROWS = 340  # rows of the original frame to keep; below them there is only floor
+KEEP_ROWS = 340  # rows kept from the top of the frame. Below them there is only floor.
 GAP_PX = 14
 
 # BGR colours, matching the figures of the reports.

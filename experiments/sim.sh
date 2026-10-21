@@ -6,7 +6,7 @@
 # Example:
 #   experiments/sim.sh wheel_collision:=cylinder -- python3 experiments/turning.py --label cylinder
 #
-# The launch runs without Gazebo's window, RViz, the detector or the guard; the experiment brings
+# The launch runs without Gazebo's window, RViz, the detector or the guard. Each experiment starts
 # what it needs. Launch arguments given here come after those and override them.
 set -euo pipefail
 
@@ -22,12 +22,12 @@ fi
 shift
 
 log=$(mktemp -t sim_launch.XXXXXX.log)
-# Each run talks to Gazebo on its own partition, so a server left over from another run can never
-# answer this one's requests.
+# One Gazebo partition per run. A server left over from an earlier run never sees this one's
+# requests.
 export GZ_PARTITION="${GZ_PARTITION:-experiment_$$}"
-# The simulation runs in its own process group, so one signal reaches Gazebo and every node.
-# Signalling only the launch leaves Gazebo running: it is started through a shell that does not
-# pass signals on.
+# The simulation gets its own process group, where one signal reaches Gazebo and every node.
+# Signalling only the launch would leave Gazebo running, because launch starts it through a shell
+# that does not pass signals on.
 set -m
 ros2 launch aruco_world world.launch.py gz_gui:=false rviz:=false detector:=false guard:=false \
   "${launch_args[@]}" > "$log" 2>&1 &
@@ -37,7 +37,7 @@ set +m
 stop() {
   kill -INT -- "-$sim" 2> /dev/null || true
   wait "$sim" 2> /dev/null || true
-  # Gazebo's server sometimes outlives the signal; give the group a few seconds, then end it.
+  # Gazebo's server sometimes outlives the signal. The group gets ten seconds before it is killed.
   for _ in $(seq 1 10); do
     pgrep -g "$sim" > /dev/null || return 0
     sleep 1

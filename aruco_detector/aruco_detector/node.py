@@ -2,7 +2,7 @@
 
 Subscribes:
     image (sensor_msgs/Image): the camera stream.
-    camera_info (sensor_msgs/CameraInfo): the calibration; poses need it, outlines do not.
+    camera_info (sensor_msgs/CameraInfo): the calibration, needed for poses but not for outlines.
 
 Publishes:
     aruco/image (sensor_msgs/Image): every frame with each marker outlined, its axes drawn and a
@@ -10,10 +10,9 @@ Publishes:
     aruco/detections (aruco_interfaces/MarkerDetectionArray): id, pose, distance and viewing angle
         of every marker in the frame, with the image's header.
     aruco/markers (visualization_msgs/MarkerArray): each detected marker as a panel with its id,
-        for RViz; every message replaces the previous one.
+        for RViz. Each message replaces the previous one.
 
-Parameters, both required: a wrong marker size would silently scale every distance, so there is no
-default to fall back on.
+Parameters, both required. With a default, a wrong marker size would quietly scale every distance.
     dictionary (string): OpenCV ArUco dictionary, such as DICT_4X4_50.
     marker_length (double): side of the black square in metres.
 """
@@ -54,8 +53,8 @@ class ArucoDetectorNode(Node):
     def __init__(self) -> None:
         super().__init__("aruco_detector")
 
-        # Declared with a type and no default. Declaring accepts an unset parameter; reading it with
-        # get_parameter does not, so a missing value stops the node here, at start-up.
+        # Declared with a type and no default. get_parameter raises on one that was never set, and
+        # the node stops at start-up instead of running with a guess.
         self.declare_parameter("marker_length", Parameter.Type.DOUBLE)
         self.declare_parameter("dictionary", Parameter.Type.STRING)
         self.marker_length: float = self.get_parameter("marker_length").value
@@ -118,8 +117,8 @@ class ArucoDetectorNode(Node):
     def markers_msg(self, header: Header, detections: list[Detection]) -> MarkerArray:
         """RViz markers for one frame: each detected marker as a panel, with its id above it.
 
-        The first entry deletes the previous frame's markers, so RViz shows only what is in view
-        without guessing how long a marker should linger.
+        The first entry deletes the previous frame's markers. RViz then shows only what is in view,
+        with no lifetime to guess.
         """
         markers = [Marker(header=header, action=Marker.DELETEALL)]
         for d in detections:
@@ -151,7 +150,7 @@ class ArucoDetectorNode(Node):
         return pose
 
     def log_changes(self, detections: list[Detection]) -> None:
-        """Log the ids in view only when they change, so the log reads as markers coming and going."""
+        """Log the ids in view only when they change: markers coming and going, not every frame."""
         ids = [d.marker_id for d in detections]
         if ids != self.ids_in_view:
             self.get_logger().info(f"markers in view: {ids}")
@@ -165,14 +164,15 @@ def main(args: list[str] | None = None) -> None:
         try:
             rclpy.spin(node)
         except RuntimeError:
-            # rclpy can fail to take a message that arrives while it shuts down; that is not an
-            # error. While it is still running, it is.
+            # rclpy can fail to take a message that arrives during shutdown. That is expected then,
+            # and a real error at any other time.
             if rclpy.ok():
                 raise
         finally:
-            # Ctrl+C under ros2 launch reaches a node twice: from the terminal and forwarded by
-            # launch. Once shutting down, the repeat is ignored so it cannot cut the cleanup or,
-            # later, the interpreter's exit; launch can still end a stuck node with SIGTERM.
+            # Under ros2 launch, Ctrl+C reaches a node twice, from the terminal and again from
+            # launch. The second one is ignored once the node is shutting down, or it could cut
+            # the cleanup or the interpreter's exit short. launch can still end a stuck node with
+            # SIGTERM.
             signal.signal(signal.SIGINT, signal.SIG_IGN)
             node.destroy_node()
             rclpy.try_shutdown()

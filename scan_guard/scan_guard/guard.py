@@ -1,16 +1,13 @@
 """Keep a robot from driving into what its 2D lidar sees, without ROS.
 
-The node in node.py feeds this module each scan and each velocity command; everything that decides
-lives here, so it can be tested on synthetic scans.
+node.py feeds this module each scan and each velocity command. Every decision is made here, where
+the tests can drive it with synthetic scans.
 
-Two zones lie past the robot's edge in the direction it drives, as wide as the robot plus a margin:
+Two zones lie past the robot's edge in the direction it drives, each as wide as the robot plus a
+margin. An obstacle in the stop zone stops any motion that way, and one in the slow zone caps the
+speed. Turning in place is never limited.
 
-- **stop zone:** an obstacle in it stops any motion that way, and the command is dropped, so the
-  robot does not set off again by itself when the obstacle leaves;
-- **slow zone:** an obstacle in it caps the speed that way.
-
-Turning in place is never limited. Frames follow REP 103: x forward, y left, angles
-counter-clockwise from x.
+Frames follow REP 103: x forward, y left, angles counter-clockwise from x.
 """
 
 from __future__ import annotations
@@ -54,8 +51,8 @@ class Zones:
         stop_distance: An obstacle this close to the leading edge, or closer, stops the robot (m).
         slow_distance: An obstacle this close, or closer, caps the speed at ``slow_speed`` (m).
         slow_speed: Speed cap inside the slow zone (m/s).
-        side_margin: Added to each side of the robot, so the zones are wider than it (m).
-        min_points: Returns an obstacle needs before it counts; 2 ignores a lone stray return.
+        side_margin: Clearance added on each side of the robot (m).
+        min_points: Returns an obstacle needs to count. With 2, a lone stray return is ignored.
     """
 
     stop_distance: float
@@ -95,7 +92,7 @@ class SensorPose:
 def yaw_from_quaternion(x: float, y: float, z: float, w: float) -> float:
     """Heading of a rotation about the vertical, from its quaternion.
 
-    A lidar mounted level has no roll or pitch, so its heading is all that places its scan.
+    A level lidar has no roll or pitch, and its heading alone orients the scan.
     """
     return math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
 
@@ -128,8 +125,7 @@ def clearance(points: np.ndarray, footprint: Footprint, zones: Zones, direction:
     """Free distance from the robot's leading edge to the nearest obstacle in its path.
 
     The path is a corridor as wide as the robot plus the side margin on each side, past the front
-    edge when driving forward and past the rear edge when reversing. Points beside the robot do not
-    count: they are not in the way.
+    edge when driving forward and past the rear edge when reversing.
 
     Args:
         points: Obstacle points in the base frame, shape (n, 2).
@@ -138,8 +134,8 @@ def clearance(points: np.ndarray, footprint: Footprint, zones: Zones, direction:
         direction: 1 forward, -1 backward.
 
     Returns:
-        Metres from the edge to the ``min_points``-th closest return in the path, so a single stray
-        return is ignored; inf if the path is clear.
+        Metres from the edge to the ``min_points``-th closest return in the path, or inf if the
+        path is clear.
     """
     if direction not in (1, -1):
         raise ValueError(f"direction must be 1 or -1, got {direction}")
@@ -169,8 +165,8 @@ def speed_limit(gap: float, zones: Zones) -> float:
 class CommandGate:
     """Holds the last velocity command and passes on what the zones allow of it.
 
-    A stop drops the held command's linear part, so a robot stopped by an obstacle stays stopped
-    after the obstacle leaves, until it is commanded again. The slow zone only caps the speed.
+    A stop drops the held command's linear part. A robot stopped by an obstacle stays stopped after
+    the obstacle leaves, until it gets a new command. The slow zone only caps the speed.
     """
 
     def __init__(self, zones: Zones) -> None:

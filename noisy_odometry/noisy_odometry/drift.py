@@ -1,12 +1,12 @@
 """Wheel odometry that drifts like a real robot's, made from the simulation's exact one, without ROS.
 
-Gazebo's wheel odometry barely drifts; a real robot's wanders off. This module adds a random,
-zero-mean error to every step of motion and integrates it, so the odometry drifts slowly and in no
-particular direction.
+Gazebo's wheel odometry barely drifts, unlike a real robot's. This module adds a random, zero-mean
+error to every step of motion and integrates it. The result drifts slowly and in no particular
+direction.
 
-The error is scaled to the motion, not to the message: each step's error variance is proportional to
-the step itself, so the errors add up as a random walk. After travelling L metres the position has
-spread by about sqrt(variance per metre * L), however often odometry is published.
+Each step's error variance is proportional to the step's length and turn, whatever the publishing
+rate. The errors add up as a random walk: after L metres the position has spread by about
+sqrt(variance per metre * L).
 """
 
 from __future__ import annotations
@@ -65,8 +65,7 @@ def increment(previous: Pose2D, current: Pose2D) -> tuple[float, float]:
     """Forward distance and heading change from one pose to the next.
 
     The distance is measured along the robot's heading at the first pose. A differential drive
-    cannot move sideways, so any sideways part, which the simulation only produces by rounding, is
-    left out.
+    cannot move sideways. Any sideways part comes from rounding in the simulation and is left out.
     """
     dx, dy = current.x - previous.x, current.y - previous.y
     forward = math.cos(previous.yaw) * dx + math.sin(previous.yaw) * dy

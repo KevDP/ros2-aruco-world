@@ -8,12 +8,12 @@ Each ``a_from_b`` is a 4x4 rigid transform that takes points from frame b to fra
 the pose of frame b in frame a. ``marker_from_camera`` is the inverse of the detected marker pose,
 and ``camera_from_base`` the inverse of where the camera sits on the robot.
 
-The robot drives on the floor, so the result is projected onto it: x, y and heading are kept;
-height, roll and pitch are dropped.
+The result is projected onto the floor the robot drives on, keeping x, y and heading and dropping
+height, roll and pitch.
 
-How far to trust one marker's fix grows with distance, unevenly. Distance to a marker is measured
-well, its orientation less so, and an orientation error swings the camera around the marker on an
-arc: the fix spreads across the line of sight, by the distance times the angle.
+A fix's uncertainty grows with distance, and more across the line of sight than along it. The
+distance to a marker is measured well. An orientation error of theta moves the camera along an arc
+around the marker, about distance * theta sideways.
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ def build_marker_map(entries: Mapping[int, Sequence[float]]) -> dict[int, np.nda
     """Each marker's pose in the map as a transform, from 7 numbers per marker.
 
     Args:
-        entries: Marker id to [x, y, z, qx, qy, qz, qw]: the centre in metres and the orientation,
+        entries: Marker id to [x, y, z, qx, qy, qz, qw], the centre in metres and the orientation,
             with the marker's z axis out of its printed side.
 
     Returns:
@@ -168,10 +168,10 @@ class Uncertainty:
 def covariance(fix: Fix, uncertainty: Uncertainty) -> np.ndarray:
     """3x3 covariance of a fix over x, y and yaw.
 
-    Along the line of sight the spread is the distance error; across it, the distance times the
-    orientation error. The heading inherits the orientation error. The two orientation terms come
-    from the same error, so they are correlated; that link is left out, which counts one marker as
-    a little more informative than it is.
+    Along the line of sight the spread is the distance error, and across it the distance times the
+    orientation error. The heading takes the orientation error as it is. Both orientation terms come
+    from one error and are correlated. Leaving that out counts one marker as a little more
+    informative than it is.
     """
     d = fix.distance
     along = uncertainty.range_per_m * d

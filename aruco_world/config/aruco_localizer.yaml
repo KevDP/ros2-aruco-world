@@ -4,12 +4,11 @@ aruco_localizer:
   ros__parameters:
     map_frame: map
     base_frame: base_footprint
-    # Markers farther than this (metres) give no fix. A small marker seen nearly head-on has an
-    # ambiguous orientation, so the limit suits this camera (640 px, 60 degrees) and 15 cm markers.
+    # Markers farther than this (metres) give no fix. Beyond it, a 15 cm marker covers too few
+    # pixels of this camera (640 across 60 degrees) for a reliable orientation seen nearly head-on.
     max_distance: 3.0
     # Standard deviations per metre of distance: of the measured distance, and of the marker's
-    # measured orientation (radians), which spreads the fix across the line of sight. Set from
-    # simulated runs against Gazebo's true pose, generous enough to also cover the detector's small
-    # distance bias.
+    # measured orientation (radians), which spreads the fix across the line of sight. Wide enough
+    # to also cover the detector's small distance bias.
     range_sigma_per_m: 0.03
     angle_sigma_per_m: 0.015

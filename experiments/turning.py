@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """How far the wheel odometry strays from the truth when the robot turns in place and drives.
 
-Each trial starts with Gazebo placing the robot at rest. A turn trial commands a turn in place at
-a set rate for long enough to make a set number of turns, then stops; a straight trial drives
-forward at a set speed for a set distance. Both are open loop, timed on the simulation's clock.
+Each trial starts with Gazebo placing the robot at rest. A turn trial turns in place at a set rate
+for long enough to make a set number of turns, then stops. A straight trial drives forward at a
+set speed for a set distance. Both are open loop, timed on the simulation's clock.
 Each trial records how far Gazebo's wheel odometry says the robot turned or travelled and how far
 it really did, plus the two over time.
 
@@ -29,14 +29,14 @@ from rclpy.node import Node
 from sim_tools import RobotPlacer, seconds, wrap, yaw_of
 from world import RESULTS
 
-TURN_RATES = (0.3, 0.6, 1.2)  # rad/s; the robot's base caps it at 1.5
+TURN_RATES = (0.3, 0.6, 1.2)  # rad/s, under the base's cap of 1.5
 TURNS = 2
 SPEEDS = (0.2, 0.4)  # m/s
 STRAIGHT_M = 2.0
 REPEATS = 3
 TURN_START = (-1.5, 0.0, 0.0)  # x, y, yaw: the spawn pose, clear of everything when turning
 STRAIGHT_START = (-3.2, 0.0, 0.0)  # leaves room for the drive before the first post
-SETTLE_S = 1.0  # simulated time to come to rest; the slowest stop (1.2 rad/s) takes 0.6 s
+SETTLE_S = 1.0  # simulated seconds to come to rest. Stopping from 1.2 rad/s takes 0.6 s.
 COMMAND_HZ = 20.0
 WAIT_TIMEOUT_S = 10.0
 

@@ -3,7 +3,7 @@
 Each experiment runs the simulation with no windows, takes the robot through a fixed scenario,
 compares what the robot measures with Gazebo's truth, and writes its numbers to
 `results/<experiment>/`. A report script turns those numbers into tables and figures. Reports
-need only NumPy and Matplotlib and run on any machine.
+need NumPy, Matplotlib and PyYAML, not ROS, and run on any machine.
 
 | Experiment | Question | Scenario |
 | --- | --- | --- |
@@ -31,11 +31,10 @@ python3 experiments/turning_report.py
 experiments/sim.sh -- python3 experiments/camera_views.py
 ```
 
-`sim.sh` starts the simulation in its own process group without Gazebo's window, RViz, the
-detector or the guard, waits for it to come up, runs the command, and shuts the whole group down
-when the command ends, fails or is interrupted, killing whatever outlives the signal. Each run
-talks to Gazebo on its own partition, where a server left over from an earlier run cannot answer its
-requests. Launch arguments before `--` go to the launch.
+`sim.sh` starts a headless simulation, waits until Gazebo publishes the robot's true pose, and
+runs the command. Whether the command finishes, fails or is interrupted, the simulation is shut
+down afterwards. Each run uses its own Gazebo partition, out of reach of a server left over from an
+earlier run. Launch arguments before `--` go to the launch.
 
 ## Layout
 
@@ -44,8 +43,8 @@ sim.sh                 runs one experiment against a fresh simulation
 sim_tools.py           placing the robot through Gazebo, and message conversions (needs ROS)
 world.py               the world and the robot, read from the files that define them (no ROS)
 plot_style.py          one look for every figure
-visibility.py          visibility_report.py
-turning.py             turning_report.py
+visibility.py          which markers the robot reads from each spot (report: visibility_report.py)
+turning.py             the odometry against the truth while turning (report: turning_report.py)
 camera_views.py        the camera's view from two poses, read and unread markers marked
 results/<experiment>/  the raw numbers (CSV), summary.md and the figures
 ```

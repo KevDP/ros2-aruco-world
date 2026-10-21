@@ -8,16 +8,15 @@ Publishes:
     aruco/robot_pose (geometry_msgs/PoseWithCovarianceStamped): one fix per known marker in view,
         in the map frame and stamped like the image it came from, ready for a filter to fuse.
     aruco/robot_pose_markers (visualization_msgs/MarkerArray): each fix as an arrow with its 2-sigma
-        ellipse, for RViz; every message replaces the previous one.
+        ellipse, for RViz, showing the latest frame's fixes only.
     aruco/marker_map (visualization_msgs/MarkerArray): where the map says each marker is, latched.
 
 Parameters:
     marker_ids (int[], required): the markers in the map.
     marker_<id> (double[7], required for each id): x, y, z, qx, qy, qz, qw of the marker in the map;
         build_world.py writes them for the simulated room.
-    max_distance (double, required): markers farther than this, in metres, give no fix. Seen nearly
-        head-on and small, a marker's orientation becomes ambiguous and its fix can land metres
-        away, so the limit depends on the camera and the marker size.
+    max_distance (double, required): markers farther than this, in metres, give no fix. The right
+        limit depends on the camera and the marker size.
     range_sigma_per_m, angle_sigma_per_m (double, required): how a fix spreads with distance; see
         localization.Uncertainty.
     map_frame (string, default map), base_frame (string, default base_footprint).
@@ -52,7 +51,7 @@ from aruco_localization.localization import (
     yaw_quaternion,
 )
 
-# The floor fixes height, roll and pitch, so their variance is nearly zero.
+# Variance of height, roll and pitch, which the floor holds fixed.
 FLOOR_VARIANCE = 1e-6
 
 # How the fixes and the map look in RViz
@@ -64,7 +63,10 @@ ARROW_LENGTH_M = 0.3
 ARROW_WIDTH_M = 0.04
 ELLIPSE_SIGMAS = 2.0
 PANEL_SIDE_M = 0.2  # drawn size only: the localizer needs where markers are, not how big
+PANEL_THICKNESS_M = 0.01
+ELLIPSE_THICKNESS_M = 0.005  # a flat disc on the floor
 LABEL_HEIGHT_M = 0.12
+LABEL_LIFT_M = 0.25  # a fix's id floats this far above the floor, clear of its arrow
 
 
 class ArucoLocalizerNode(Node):
@@ -73,7 +75,7 @@ class ArucoLocalizerNode(Node):
     def __init__(self) -> None:
         super().__init__("aruco_localizer")
 
-        # Declared with a type and no default: get_parameter stops the node here if one is missing.
+        # No defaults for the map and the limits. A missing one stops the node at start-up.
         self.declare_parameter("marker_ids", Parameter.Type.INTEGER_ARRAY)
         self.entries: dict[int, list[float]] = {}
         for marker_id in self._param("marker_ids"):
@@ -107,7 +109,7 @@ class ArucoLocalizerNode(Node):
         )
         self.pose_pub = self.create_publisher(PoseWithCovarianceStamped, "aruco/robot_pose", 10)
         self.fixes_pub = self.create_publisher(MarkerArray, "aruco/robot_pose_markers", 10)
-        # Latched: the map never changes, so RViz gets it whenever it starts.
+        # Latched: published once, and an RViz started later still receives it.
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.map_pub = self.create_publisher(MarkerArray, "aruco/marker_map", latched)
         self.map_pub.publish(self.marker_map_msg())
@@ -168,7 +170,7 @@ class ArucoLocalizerNode(Node):
     def fixes_msg(self, header: Header, fixes: list[tuple[int, Fix, np.ndarray]]) -> MarkerArray:
         """Each fix as an arrow with its ellipse and the id of the marker that gave it.
 
-        The first entry deletes the previous frame's, so RViz shows only the current fixes.
+        The first entry clears the previous frame's fixes from RViz.
         """
         stamped = Header(stamp=header.stamp, frame_id=self.map_frame)
         markers = [Marker(header=stamped, action=Marker.DELETEALL)]
@@ -180,7 +182,7 @@ class ArucoLocalizerNode(Node):
             arrow.scale.x, arrow.scale.y, arrow.scale.z = ARROW_LENGTH_M, ARROW_WIDTH_M, ARROW_WIDTH_M
             arrow.color = FIX_COLOR
 
-            # The ellipse's axes are the covariance's eigenvectors; a cylinder squashed flat draws it.
+            # A flat cylinder drawn along the covariance's eigenvectors.
             variances, vectors = np.linalg.eigh(cov[:2, :2])
             ellipse = Marker(header=stamped, ns="ellipses", id=i, type=Marker.CYLINDER)
             ellipse.pose.position.x, ellipse.pose.position.y = fix.x, fix.y
@@ -188,12 +190,12 @@ class ArucoLocalizerNode(Node):
             o.x, o.y, o.z, o.w = yaw_quaternion(math.atan2(vectors[1, 1], vectors[0, 1]))
             diameters = 2 * ELLIPSE_SIGMAS * np.sqrt(np.maximum(variances, 0.0))
             ellipse.scale.x, ellipse.scale.y = float(diameters[1]), float(diameters[0])
-            ellipse.scale.z = 0.005
+            ellipse.scale.z = ELLIPSE_THICKNESS_M
             ellipse.color = ELLIPSE_COLOR
 
             label = Marker(header=stamped, ns="labels", id=i, type=Marker.TEXT_VIEW_FACING)
             label.pose.position.x, label.pose.position.y = fix.x, fix.y
-            label.pose.position.z = 0.25
+            label.pose.position.z = LABEL_LIFT_M
             label.text = str(marker_id)
             label.scale.z = LABEL_HEIGHT_M
             label.color = LABEL_COLOR
@@ -210,7 +212,7 @@ class ArucoLocalizerNode(Node):
             o = panel.pose.orientation
             o.x, o.y, o.z, o.w = qx, qy, qz, qw
             panel.scale.x = panel.scale.y = PANEL_SIDE_M
-            panel.scale.z = 0.01
+            panel.scale.z = PANEL_THICKNESS_M
             panel.color = MAP_COLOR
 
             label = Marker(header=header, ns="map_ids", id=marker_id, type=Marker.TEXT_VIEW_FACING)
@@ -224,19 +226,16 @@ class ArucoLocalizerNode(Node):
 
 
 def main(args: list[str] | None = None) -> None:
+    # Starts and shuts down like aruco_detector's main(), whose comments explain both guards.
     try:
         rclpy.init(args=args)
         node = ArucoLocalizerNode()
         try:
             rclpy.spin(node)
         except RuntimeError:
-            # rclpy can fail to take a message that arrives while it shuts down; that is not an
-            # error. While it is still running, it is.
             if rclpy.ok():
                 raise
         finally:
-            # Ctrl+C under ros2 launch reaches a node twice; once shutting down, the repeat is
-            # ignored so it cannot cut the cleanup (same as aruco_detector).
             signal.signal(signal.SIGINT, signal.SIG_IGN)
             node.destroy_node()
             rclpy.try_shutdown()

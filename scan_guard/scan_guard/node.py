@@ -11,7 +11,7 @@ Publishes:
 
 Parameters:
     front, rear, half_width (double, required): the robot's outline in base_frame, in metres. A
-        wrong outline would silently shrink the zones, so there is no default to fall back on.
+        default outline, meant for some other robot, could quietly shrink the zones.
     stop_distance, slow_distance (double, required): zone lengths past the robot's edge, in metres.
     slow_speed (double, required): speed cap in the slow zone, in m/s.
     side_margin (double, default 0.05): extra width on each side of the robot, in metres.
@@ -20,8 +20,8 @@ Parameters:
     rate (double, default 20.0): how often the command is sent, in Hz.
     base_frame (string, default base_footprint): the frame the outline is given in.
 
-Without a recent scan, or before TF says where the lidar sits, the node sends zero velocity: with
-no fresh data it cannot know the path is clear.
+The node sends zero velocity until it has a recent scan and the lidar's pose from TF. Without them
+it cannot tell whether the path is clear.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ class ScanGuardNode(Node):
     def __init__(self) -> None:
         super().__init__("scan_guard")
 
-        # Declared with a type and no default: get_parameter stops the node here if one is missing.
+        # The first six have no default. The node stops at start-up if any of them is missing.
         for name in ("front", "rear", "half_width", "stop_distance", "slow_distance", "slow_speed"):
             self.declare_parameter(name, Parameter.Type.DOUBLE)
         self.declare_parameter("side_margin", 0.05)
@@ -91,22 +91,22 @@ class ScanGuardNode(Node):
 
         self.gate = CommandGate(self.zones)
         self.sensor: SensorPose | None = None  # the lidar's pose in base_frame, looked up once
-        self.gaps = (0.0, 0.0)  # free metres ahead and behind; nothing is free until a scan says so
+        self.gaps = (0.0, 0.0)  # free metres ahead and behind, zero until a scan arrives
         self.last_scan = -math.inf  # time.monotonic() of the last scan used
         self.holding = False  # whether the last cycle held the robot for lack of scans
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        # Sensor QoS drops late scans instead of queueing them. The names stay relative so a launch
-        # file can remap them.
+        # Best-effort sensor QoS, as for the detector's camera. Relative names, for the launch file
+        # to remap.
         self.create_subscription(LaserScan, "scan", self.on_scan, qos_profile_sensor_data)
         self.create_subscription(Twist, "cmd_vel_in", self.on_command, 10)
         self.cmd_pub = self.create_publisher(Twist, "cmd_vel_out", 10)
         self.zones_pub = self.create_publisher(MarkerArray, "scan_guard/zones", 10)
         self.create_timer(1.0 / self._param("rate"), self.on_timer)
 
-        # Remapped names, so a teleop pointed at the wrong topic is easy to spot.
+        # Logs the remapped names: a teleop pointed at the wrong topic shows up here.
         self.get_logger().info(
             f"guarding {self.resolve_topic_name('cmd_vel_in')} -> "
             f"{self.resolve_topic_name('cmd_vel_out')} with {self.resolve_topic_name('scan')}"
@@ -136,7 +136,7 @@ class ScanGuardNode(Node):
         self.zones_pub.publish(self.zones_msg())
 
     def lookup_sensor(self, frame: str) -> SensorPose | None:
-        """The lidar's pose in base_frame. It is bolted on, so one lookup is enough."""
+        """Where the lidar sits on the robot. It is bolted on, and one lookup serves the run."""
         try:
             t = self.tf_buffer.lookup_transform(self.base_frame, frame, Time())
         except TransformException as e:
@@ -191,7 +191,7 @@ class ScanGuardNode(Node):
     def zones_msg(self) -> MarkerArray:
         """Slow and stop zones ahead and behind, as slabs on the floor of base_frame.
 
-        The stamp stays zero, which RViz reads as "the latest transform", so the slabs follow the
+        The stamp stays zero, which RViz reads as "the latest transform". The slabs then follow the
         robot without waiting for TF at the scan's time.
         """
         width = 2 * (self.footprint.half_width + self.zones.side_margin)
@@ -216,19 +216,16 @@ class ScanGuardNode(Node):
 
 
 def main(args: list[str] | None = None) -> None:
+    # Starts and shuts down like aruco_detector's main(), whose comments explain both guards.
     try:
         rclpy.init(args=args)
         node = ScanGuardNode()
         try:
             rclpy.spin(node)
         except RuntimeError:
-            # rclpy can fail to take a message that arrives while it shuts down; that is not an
-            # error. While it is still running, it is.
             if rclpy.ok():
                 raise
         finally:
-            # Ctrl+C under ros2 launch reaches a node twice; once shutting down, the repeat is
-            # ignored so it cannot cut the cleanup (same as aruco_detector).
             signal.signal(signal.SIGINT, signal.SIG_IGN)
             node.destroy_node()
             rclpy.try_shutdown()

@@ -1,7 +1,7 @@
 """ArUco detection and pose estimation on one image, with no ROS dependency.
 
-Kept apart from the node so the same code serves the live node, one-off tools and the tests, and so
-it can be checked on synthetic images where the true pose is known.
+The live node, one-off tools and the tests all use this module. The tests check it on synthetic
+images, where the true pose is known.
 
 Conventions follow OpenCV: poses are in the camera optical frame (x right, y down, z forward), in
 metres, and a marker's own z axis points out of its printed side.
@@ -50,7 +50,7 @@ class Detection:
 
     @property
     def viewing_angle(self) -> float:
-        """Radians between the marker's normal and the line of sight to the camera; 0 is head-on."""
+        """Radians between the marker's normal and the line of sight, 0 when head-on."""
         rvec, tvec = self._pose()
         normal = cv2.Rodrigues(rvec)[0][:, 2]
         to_camera = -tvec / np.linalg.norm(tvec)
@@ -67,12 +67,12 @@ class Detection:
 class MarkerDetector:
     """ArUco detection for one dictionary, on either OpenCV API.
 
-    OpenCV 4.7 moved ArUco to an ``ArucoDetector`` object; Ubuntu 24.04 ships 4.6, which only has
-    the older free functions. The choice is made once, here.
+    OpenCV 4.7 moved ArUco to an ``ArucoDetector`` object. Ubuntu 24.04 ships 4.6, which only has
+    the older free functions. The constructor picks one API for the detector's lifetime.
 
-    Corners are refined to subpixel precision: the pose comes from four corners only, so a corner
-    left on the pixel grid shrinks the square and inflates the distance, more so the smaller the
-    marker looks.
+    Corners are refined to subpixel precision. With four corners as the only input to the pose,
+    rounding them to whole pixels shrinks the square and inflates the distance, more for a marker
+    that looks small.
     """
 
     def __init__(self, dictionary_name: str) -> None:
@@ -102,8 +102,8 @@ class MarkerDetector:
 
         Args:
             image: The frame, BGR or grayscale.
-            marker_length: Side of the black square in metres; needed for poses.
-            camera_matrix: 3x3 intrinsics; needed for poses.
+            marker_length: Side of the black square in metres, needed for poses.
+            camera_matrix: 3x3 intrinsics, needed for poses.
             dist_coeffs: Distortion coefficients, or None for an undistorted image.
 
         Returns:
@@ -144,9 +144,9 @@ def estimate_pose(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Pose of a square marker from its four corners.
 
-    Uses SQPnP rather than IPPE_SQUARE, the usual choice for markers: SQPnP is globally optimal, so
-    the pose it returns is the one that best fits the corners, and a marker is never flipped to
-    face away from the camera.
+    SOLVEPNP_SQPNP instead of SOLVEPNP_IPPE_SQUARE, the usual flag for markers. SQPnP finds the
+    global minimum of the reprojection error, and its answer never has the marker facing away from
+    the camera.
 
     Args:
         corners: (4, 2) pixel corners in ArUco order.
