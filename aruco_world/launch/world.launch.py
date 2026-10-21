@@ -20,6 +20,7 @@ Usage:
     ros2 launch aruco_world world.launch.py rviz:=false image_view:=true    # camera window only
     ros2 launch aruco_world world.launch.py gz_gui:=false                   # RViz only, lighter
     ros2 launch aruco_world world.launch.py guard:=false                    # teleop on /cmd_vel
+    ros2 launch aruco_world world.launch.py wheel_collision:=cylinder       # to compare wheels
 """
 
 from __future__ import annotations
@@ -67,6 +68,28 @@ def _footprint(urdf_xacro: str) -> dict[str, float]:
     return {"front": half_length, "rear": half_length, "half_width": half_width}
 
 
+WHEEL_COLLISIONS = ("sphere", "cylinder")
+
+
+def _robot_state_publisher(context: LaunchContext, urdf_xacro: str) -> list[Node]:
+    """robot_state_publisher with the robot's description, built for the chosen wheel shape.
+
+    The launch argument's choices already reject any other shape.
+    """
+    wheel_collision = LaunchConfiguration("wheel_collision").perform(context)
+    description = xacro.process_file(
+        urdf_xacro, mappings={"wheel_collision": wheel_collision}
+    ).toxml()
+    return [
+        Node(
+            package="robot_state_publisher",
+            executable="robot_state_publisher",
+            parameters=[{"robot_description": description}, SIM_TIME],
+            output="screen",
+        )
+    ]
+
+
 def _image_view(context: LaunchContext) -> list[Node]:
     """The camera window: the detector's annotated image when it runs, the raw camera otherwise."""
     if not _enabled("image_view", context):
@@ -79,7 +102,6 @@ def generate_launch_description() -> LaunchDescription:
     share = get_package_share_directory("aruco_world")
     world = os.path.join(share, "worlds", "aruco_room.sdf")
     urdf = os.path.join(share, "urdf", "camera_bot.urdf.xacro")
-    description = xacro.process_file(urdf).toxml()
     with open(os.path.join(share, "config", "robot_start.yaml")) as f:
         start = yaml.safe_load(f)
 
@@ -103,12 +125,7 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(LaunchConfiguration("gz_gui")),
     )
 
-    robot_state_publisher = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        parameters=[{"robot_description": description}, SIM_TIME],
-        output="screen",
-    )
+    robot_state_publisher = OpaqueFunction(function=_robot_state_publisher, args=[urdf])
 
     # Gazebo builds the robot from the description robot_state_publisher publishes.
     spawn = Node(
@@ -154,7 +171,8 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     # The two filters share one file. The global one starts where the robot was spawned, the local
-    # one at its own origin, like the odometry.
+    # one at its own origin, like the odometry. robot_localization's state is x, y, z, roll, pitch,
+    # yaw, then six velocities and three linear accelerations, all zero at rest.
     ekf = os.path.join(share, "config", "ekf.yaml")
     start_state = [start["x"], start["y"], 0.0, 0.0, 0.0, start["yaw"]] + [0.0] * 9
     ekf_local = Node(
@@ -231,6 +249,12 @@ def generate_launch_description() -> LaunchDescription:
                 "guard",
                 default_value="true",
                 description="Guard the robot with the lidar: drive on /cmd_vel_teleop",
+            ),
+            DeclareLaunchArgument(
+                "wheel_collision",
+                default_value="sphere",
+                choices=list(WHEEL_COLLISIONS),
+                description="Collision shape of the wheels; cylinder is kept to compare the two",
             ),
             # Gazebo finds the markers through model:// URIs.
             AppendEnvironmentVariable("GZ_SIM_RESOURCE_PATH", os.path.join(share, "models")),

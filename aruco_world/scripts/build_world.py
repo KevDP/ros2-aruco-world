@@ -35,7 +35,10 @@ DICTIONARY_NAME = "DICT_4X4_50"
 DICTIONARY = getattr(cv2.aruco, DICTIONARY_NAME)
 MARKER_SIDE_M = 0.15  # black square
 BORDER_M = 0.025  # white quiet zone on each side, which detection needs
+PANEL_SIDE_M = MARKER_SIDE_M + 2 * BORDER_M
 PANEL_THICKNESS_M = 0.002
+PRINT_OFFSET_M = 0.0005  # the printed plane sits this far in front of the panel, so they never mix
+PANEL_BACK_RGB = "0.85 0.85 0.85"  # plain card behind the print
 TEXTURE_MARKER_PX = 600
 TEXTURE_BORDER_PX = round(TEXTURE_MARKER_PX * BORDER_M / MARKER_SIDE_M)
 
@@ -49,6 +52,11 @@ ROBOT_START = (-1.5, 0.0, 0.0, 0.0)  # x, y, z, yaw in the world; the launch spa
 # A plain box; marker 4 sits on its -X face, the one that looks back into the room.
 BOX_CENTRE = (2.0, 2.4)
 BOX_SIZE = (0.6, 0.6, 0.8)
+
+# A post marker stands on a square post whose centre sits behind the panel, so the post never shows
+# in front of the marker.
+POST_SIDE_M = 0.04
+POST_SETBACK_M = 0.03
 
 
 @dataclass(frozen=True)
@@ -86,7 +94,17 @@ def _turned_from_robot(x: float, y: float, turn_deg: float) -> tuple[float, floa
     return _toward(to_robot + turn_deg)
 
 
-WALL = ROOM_HALF - PANEL_THICKNESS_M / 2
+def _off_wall(down_deg: float = 0.0) -> float:
+    """Distance from a wall to the centre of a panel on it, tilted down by ``down_deg``.
+
+    A panel tilts about its centre, so its lower edge swings toward the wall; this keeps that edge
+    touching the wall instead of sunk into it.
+    """
+    down = math.radians(down_deg)
+    return PANEL_SIDE_M / 2 * math.sin(down) + PANEL_THICKNESS_M / 2 * math.cos(down)
+
+
+WALL = ROOM_HALF - _off_wall()
 BOX_FACE = BOX_CENTRE[0] - BOX_SIZE[0] / 2 - PANEL_THICKNESS_M / 2
 
 PLACEMENTS = [
@@ -96,9 +114,21 @@ PLACEMENTS = [
     Placement(3, (0.2, -0.5, 0.001), (0, 0, 1), "floor", "on the floor"),
     Placement(4, (BOX_FACE, BOX_CENTRE[1], 0.45), _toward(180), "box", "on the side of a box"),
     Placement(5, (WALL, 0.9, 1.0), _toward(180), "wall", "far wall"),
-    Placement(6, (WALL, -1.4, 1.9), _tilted(180, 20), "wall", "far wall, high, tilted down"),
+    Placement(
+        6,
+        (ROOM_HALF - _off_wall(20), -1.4, 1.9),
+        _tilted(180, 20),
+        "wall",
+        "far wall, high, tilted down",
+    ),
     Placement(7, (1.0, WALL, 1.2), _toward(-90), "wall", "left wall"),
-    Placement(8, (-0.5, -WALL, 2.2), _tilted(90, 25), "wall", "right wall, high, tilted down"),
+    Placement(
+        8,
+        (-0.5, -(ROOM_HALF - _off_wall(25)), 2.2),
+        _tilted(90, 25),
+        "wall",
+        "right wall, high, tilted down",
+    ),
     Placement(9, (-WALL, 0.5, 1.0), _toward(0), "wall", "back wall, behind the robot"),
 ]
 
@@ -169,8 +199,8 @@ def _pose(x: float, y: float, z: float, roll: float = 0, pitch: float = 0, yaw: 
 def marker_texture(marker_id: int) -> np.ndarray:
     """The marker with its white quiet zone, as a grayscale image laid out for the panel.
 
-    Gazebo lays the texture on the panel's printed face a quarter turn clockwise, so it is written
-    a quarter turn counter-clockwise: the marker's own up then matches the panel's +Y.
+    Gazebo lays an image on a plane upright, the image's top toward the plane's +Y, so the
+    marker's own up matches the panel's +Y as written.
     """
     dictionary = cv2.aruco.getPredefinedDictionary(DICTIONARY)
     if hasattr(cv2.aruco, "generateImageMarker"):  # OpenCV 4.7 and later
@@ -178,8 +208,7 @@ def marker_texture(marker_id: int) -> np.ndarray:
     else:  # OpenCV 4.6, the version in Ubuntu 24.04
         marker = cv2.aruco.drawMarker(dictionary, marker_id, TEXTURE_MARKER_PX)
     pad = TEXTURE_BORDER_PX
-    padded = cv2.copyMakeBorder(marker, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=255)
-    return cv2.rotate(padded, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    return cv2.copyMakeBorder(marker, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=255)
 
 
 def write_marker_model(marker_id: int) -> None:
@@ -188,8 +217,12 @@ def write_marker_model(marker_id: int) -> None:
     (folder / "materials" / "textures").mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(folder / "materials" / "textures" / f"{name}.png"), marker_texture(marker_id))
 
-    panel = MARKER_SIDE_M + 2 * BORDER_M
+    panel = PANEL_SIDE_M
     texture_uri = f"model://{name}/materials/textures/{name}.png"
+    # A box's material covers all six faces, so a textured box would carry the marker on its back
+    # too and be readable from behind. The marker is a one-sided plane just in front of the
+    # printed face; the panel behind it is plain.
+    face_z = PANEL_THICKNESS_M / 2 + PRINT_OFFSET_M
     (folder / "model.config").write_text(
         f"""<?xml version="1.0"?>
 <model>
@@ -208,7 +241,8 @@ def write_marker_model(marker_id: int) -> None:
     <static>true</static>
     <link name="panel">
       <visual name="marker">
-        <geometry><box><size>{panel} {panel} {PANEL_THICKNESS_M}</size></box></geometry>
+        <pose>0 0 {face_z} 0 0 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>{panel} {panel}</size></plane></geometry>
         <material>
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
@@ -218,6 +252,10 @@ def write_marker_model(marker_id: int) -> None:
             <metalness>0.0</metalness>
           </metal></pbr>
         </material>
+      </visual>
+      <visual name="panel">
+        <geometry><box><size>{panel} {panel} {PANEL_THICKNESS_M}</size></box></geometry>
+        <material><ambient>{PANEL_BACK_RGB} 1</ambient><diffuse>{PANEL_BACK_RGB} 1</diffuse></material>
       </visual>
       <collision name="panel">
         <geometry><box><size>{panel} {panel} {PANEL_THICKNESS_M}</size></box></geometry>
@@ -266,13 +304,13 @@ def _props() -> str:
         if p.mount != "post":
             continue
         n = _unit(np.asarray(p.facing, dtype=float))
-        x, y = p.position[0] - 0.03 * n[0], p.position[1] - 0.03 * n[1]
+        x, y = p.position[0] - POST_SETBACK_M * n[0], p.position[1] - POST_SETBACK_M * n[1]
         height = p.position[2] - MARKER_SIDE_M / 2
         links.append(
             _box_link(
                 f"post_{p.marker_id}",
                 _pose(x, y, height / 2),
-                (0.04, 0.04, height),
+                (POST_SIDE_M, POST_SIDE_M, height),
                 "0.25 0.25 0.25",
             )
         )

@@ -5,7 +5,8 @@
     <static>true</static>
     <link name="panel">
       <visual name="marker">
-        <geometry><box><size>0.2 0.2 0.002</size></box></geometry>
+        <pose>0 0 0.0015 0 0 0</pose>
+        <geometry><plane><normal>0 0 1</normal><size>0.2 0.2</size></plane></geometry>
         <material>
           <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
@@ -15,6 +16,10 @@
             <metalness>0.0</metalness>
           </metal></pbr>
         </material>
+      </visual>
+      <visual name="panel">
+        <geometry><box><size>0.2 0.2 0.002</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
       </visual>
       <collision name="panel">
         <geometry><box><size>0.2 0.2 0.002</size></box></geometry>

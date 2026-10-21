@@ -11,6 +11,10 @@
 -->
 <robot name="camera_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+  <!-- The wheels' collision shape: "sphere" (the default, see the wheel macro) or "cylinder", the
+       shape they are drawn as, kept to compare the two. -->
+  <xacro:arg name="wheel_collision" default="sphere"/>
+
   <!-- Dimensions in metres, masses in kilograms -->
   <xacro:property name="body_length" value="0.36"/>
   <xacro:property name="body_width" value="0.24"/>
@@ -32,6 +36,12 @@
   <xacro:property name="lidar_height" value="0.035"/>
   <xacro:property name="lidar_mass" value="0.1"/>
   <xacro:property name="mast_radius" value="0.01"/>
+
+  <!-- What the base can do, in m/s, rad/s and their rates of change -->
+  <xacro:property name="max_speed" value="0.6"/>
+  <xacro:property name="max_turn_rate" value="1.5"/>
+  <xacro:property name="max_acceleration" value="1.0"/>
+  <xacro:property name="max_turn_acceleration" value="2.0"/>
 
   <!-- A low-cost 360-degree time-of-flight lidar, from the datasheets of two common ones: 5,000
        samples per second at 10 turns per second, so 500 rays 0.72 degrees apart. Where they
@@ -143,7 +153,12 @@
            turning on the inner edges shrinks the wheel separation the odometry assumes. A sphere
            touches at one point, right under the wheel's centre. -->
       <collision>
-        <geometry><sphere radius="${wheel_radius}"/></geometry>
+        <xacro:if value="${'$(arg wheel_collision)' == 'sphere'}">
+          <geometry><sphere radius="${wheel_radius}"/></geometry>
+        </xacro:if>
+        <xacro:if value="${'$(arg wheel_collision)' == 'cylinder'}">
+          <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        </xacro:if>
       </collision>
     </link>
     <!-- The cylinder's axis is its z: rolled to point along y, the joint turns about it. -->
@@ -322,10 +337,17 @@
       <frame_id>odom</frame_id>
       <child_frame_id>base_footprint</child_frame_id>
       <odom_publish_frequency>30</odom_publish_frequency>
-      <max_linear_velocity>0.6</max_linear_velocity>
-      <max_angular_velocity>1.5</max_angular_velocity>
-      <max_linear_acceleration>1.0</max_linear_acceleration>
-      <max_angular_acceleration>2.0</max_angular_acceleration>
+      <!-- Every limit on both sides: Gazebo's speed limiter leaves a bound it is not given at
+           infinity, so with the maximums alone, braking, reversing and turning right would be
+           instantaneous and unbounded. -->
+      <max_linear_velocity>${max_speed}</max_linear_velocity>
+      <min_linear_velocity>${-max_speed}</min_linear_velocity>
+      <max_angular_velocity>${max_turn_rate}</max_angular_velocity>
+      <min_angular_velocity>${-max_turn_rate}</min_angular_velocity>
+      <max_linear_acceleration>${max_acceleration}</max_linear_acceleration>
+      <min_linear_acceleration>${-max_acceleration}</min_linear_acceleration>
+      <max_angular_acceleration>${max_turn_acceleration}</max_angular_acceleration>
+      <min_angular_acceleration>${-max_turn_acceleration}</min_angular_acceleration>
     </plugin>
     <plugin filename="gz-sim-joint-state-publisher-system"
             name="gz::sim::systems::JointStatePublisher">

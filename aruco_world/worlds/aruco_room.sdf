@@ -133,7 +133,7 @@
     <include>
       <uri>model://aruco_6</uri>
       <name>aruco_6</name>
-      <pose>3.9990 -1.4000 1.9000 1.919862 -0.000000 -1.570796</pose>
+      <pose>3.9649 -1.4000 1.9000 1.919862 -0.000000 -1.570796</pose>
     </include>
     <!-- left wall -->
     <include>
@@ -145,7 +145,7 @@
     <include>
       <uri>model://aruco_8</uri>
       <name>aruco_8</name>
-      <pose>-0.5000 -3.9990 2.2000 2.007129 -0.000000 3.141593</pose>
+      <pose>-0.5000 -3.9568 2.2000 2.007129 -0.000000 3.141593</pose>
     </include>
     <!-- back wall, behind the robot -->
     <include>
