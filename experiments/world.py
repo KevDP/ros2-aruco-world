@@ -38,6 +38,13 @@ def marker_settings() -> tuple[str, float]:
     return params["dictionary"], float(params["marker_length"])
 
 
+def localizer_reach() -> float:
+    """Metres past which the localizer gives no fix, from its configuration."""
+    path = WORLD_PACKAGE / "config" / "aruco_localizer.yaml"
+    params = yaml.safe_load(path.read_text())["aruco_localizer"]["ros__parameters"]
+    return float(params["max_distance"])
+
+
 def robot_properties() -> dict[str, float]:
     """The numeric properties the URDF builds the robot with (sizes in metres)."""
     tag = "{http://www.ros.org/wiki/xacro}property"

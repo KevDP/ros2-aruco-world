@@ -1,22 +1,23 @@
 # Visibility: which markers the robot reads from each spot
 
-216 spots on a grid over the free floor, 12 headings each: 2592 poses. Largest gap between the pose asked for and the pose Gazebo reported: 0.0 cm and 0.05 deg.
+216 spots on a grid over the free floor, 12 headings each: 2592 poses. Largest gap between the pose asked for and the pose Gazebo reported: 0.0 cm and 0.04 deg.
 
 ## How much of the room sees markers
 
 | Distinct markers read from the spot, turning in place | Spots | Share |
 |---|---:|---:|
-| 0 | 29 | 13.4% |
-| 1 | 48 | 22.2% |
-| 2 | 40 | 18.5% |
-| 3 | 38 | 17.6% |
-| 4 | 24 | 11.1% |
-| 5 | 16 | 7.4% |
-| 6 | 10 | 4.6% |
-| 7 | 8 | 3.7% |
-| 8 or more | 3 | 1.4% |
+| 0 | 7 | 3.2% |
+| 1 | 12 | 5.6% |
+| 2 | 26 | 12.0% |
+| 3 | 39 | 18.1% |
+| 4 | 36 | 16.7% |
+| 5 | 31 | 14.4% |
+| 6 | 29 | 13.4% |
+| 7 | 17 | 7.9% |
+| 8 | 10 | 4.6% |
+| 9 or more | 9 | 4.2% |
 
-Poses (spot and heading) with at least one marker read: 583 of 2592 (22.5%). Median share of headings that read a marker, per spot: 17%.
+Poses (spot and heading) with at least one marker read: 971 of 2592 (37.5%). Median share of headings that read a marker, per spot: 33%.
 
 ## Each marker's reach
 
@@ -24,13 +25,13 @@ True distance and viewing angle (0 is head-on) at which it was read; the last co
 
 | Id | Placement | Read from (share of spots) | True distance, min / median / max (m) | Viewing angle, median / max (deg) | Detector distance error, median |
 |---|---|---:|---|---|---:|
-| 0 | facing the robot | 23% | 1.3 / 2.4 / 4.3 | 24 / 62 | +3.2% |
-| 1 | turned 30 degrees | 36% | 1.4 / 3.2 / 6.1 | 25 / 64 | +3.0% |
-| 2 | turned 60 degrees | 29% | 0.9 / 2.7 / 5.9 | 25 / 75 | +4.2% |
-| 3 | on the floor | 7% | 0.7 / 0.9 / 1.4 | 74 / 80 | +1.7% |
-| 4 | on the side of a box | 31% | 0.8 / 3.0 / 5.2 | 20 / 71 | +1.8% |
-| 5 | far wall | 43% | 2.2 / 4.5 / 8.2 | 22 / 71 | +14.1% |
-| 6 | far wall, high, tilted down | 19% | 4.5 / 5.4 / 7.6 | 17 / 42 | +12.6% |
-| 7 | left wall | 27% | 2.7 / 4.0 / 7.3 | 21 / 61 | +6.3% |
-| 8 | right wall, high, tilted down | 13% | 5.2 / 6.1 / 8.1 | 15 / 39 | +14.0% |
-| 9 | back wall, behind the robot | 31% | 2.2 / 3.5 / 7.7 | 24 / 68 | +4.3% |
+| 0 | facing the robot | 42% | 1.3 / 3.2 / 4.9 | 35 / 73 | +5.4% |
+| 1 | turned 30 degrees | 52% | 1.4 / 3.7 / 6.4 | 27 / 75 | +4.1% |
+| 2 | turned 60 degrees | 43% | 0.9 / 3.4 / 6.2 | 29 / 77 | +7.8% |
+| 3 | on the floor | 8% | 0.7 / 0.9 / 1.6 | 74 / 81 | +1.6% |
+| 4 | on the side of a box | 44% | 0.8 / 3.6 / 6.1 | 24 / 78 | +2.4% |
+| 5 | far wall | 62% | 2.2 / 4.8 / 8.3 | 23 / 71 | +15.4% |
+| 6 | far wall, high, tilted down | 39% | 4.5 / 5.7 / 8.3 | 15 / 50 | +14.0% |
+| 7 | left wall | 41% | 2.7 / 4.5 / 7.5 | 23 / 63 | +8.9% |
+| 8 | right wall, high, tilted down | 34% | 5.2 / 6.2 / 8.1 | 16 / 46 | +16.0% |
+| 9 | back wall, behind the robot | 68% | 2.2 / 4.5 / 7.5 | 26 / 68 | +11.6% |

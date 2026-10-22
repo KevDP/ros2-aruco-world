@@ -74,10 +74,15 @@ def grid_positions(step: float) -> list[tuple[float, float]]:
 class Visibility(Node):
     """Collects one camera frame and the true pose after each move, and detects the markers."""
 
-    def __init__(self) -> None:
+    def __init__(self, cell_centres: bool = True) -> None:
+        """Subscribe to the camera and the true pose.
+
+        Args:
+            cell_centres: Passed to the detector. False reads whole cells, OpenCV's default.
+        """
         super().__init__("visibility_experiment")
         dictionary, self.marker_length = marker_settings()
-        self.detector = MarkerDetector(dictionary)
+        self.detector = MarkerDetector(dictionary, cell_centres)
         self.bridge = CvBridge()
         self.camera_matrix: np.ndarray | None = None
         self.dist_coeffs: np.ndarray | None = None
