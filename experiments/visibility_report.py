@@ -6,8 +6,9 @@ Reads poses.csv and detections.csv from experiments/visibility.py and writes, ne
     map.png       distinct markers the robot reads from each spot, turning in place
     envelope.png  every marker read, by its true distance and viewing angle
 
-True distances and viewing angles come from the robot's true pose, the camera's place on the
-robot and the marker map, not from the detector. Needs NumPy, Matplotlib and PyYAML, not ROS:
+True distances and viewing angles are computed from the robot's true pose, the camera's place on
+the robot and the marker map, and the detector's own measurements are left out. Runs without ROS,
+with NumPy, Matplotlib and PyYAML:
     python3 experiments/visibility_report.py
 """
 

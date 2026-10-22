@@ -150,7 +150,7 @@ class ArucoDetectorNode(Node):
         return pose
 
     def log_changes(self, detections: list[Detection]) -> None:
-        """Log the ids in view only when they change: markers coming and going, not every frame."""
+        """Log the ids in view each time the set changes."""
         ids = [d.marker_id for d in detections]
         if ids != self.ids_in_view:
             self.get_logger().info(f"markers in view: {ids}")

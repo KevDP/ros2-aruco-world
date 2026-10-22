@@ -19,7 +19,7 @@ is slow. A simulated camera shows the same effects in seconds and makes every ca
 
 ## The world
 
-Ten markers (DICT_4X4_50, 15 cm) are placed to cover a range of cases rather than the easy one:
+Ten markers (DICT_4X4_50, 15 cm) cover a range of cases, from easy to hard:
 
 - **near and head-on**, on a post in front of the robot
 - **turned away**, on posts turned at increasing angles
@@ -97,8 +97,8 @@ limit and the spread live in `aruco_world/config/aruco_localizer.yaml`.
 
 Gazebo's wheel odometry is close to perfect, and no real robot's is. `noisy_odometry` publishes a
 drifting copy of it. Each step of motion gets a random, zero-mean error sized by the distance
-travelled and the angle turned, not by how often messages arrive, and the errors build up as a
-random walk. The robot's nodes only ever see that copy, on `/wheel/odometry`.
+travelled and the angle turned, and the errors build up as a random walk. The robot's nodes only
+ever see that copy, on `/wheel/odometry`.
 
 Two `robot_localization` filters then estimate the robot's pose, following the split REP 105
 describes:
@@ -274,7 +274,7 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
   has to be tested on.
 - A 2D lidar sees a single plane, 0.30 m above the floor here. Anything lower, such as the floor
   marker, or anything overhanging is invisible to it.
-- The guard is a teaching example, not a certified safety function. It does not check turning in
+- The guard is a teaching example with no safety certification. It does not check turning in
   place, and an obstacle has to return at least `min_points` rays to count, which a thin object far
   away may not do (rays are 1.3 cm apart at 1 m).
 - With no marker in range, the global estimate relies on odometry and the gyro alone and drifts

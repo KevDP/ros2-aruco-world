@@ -337,9 +337,9 @@
       <frame_id>odom</frame_id>
       <child_frame_id>base_footprint</child_frame_id>
       <odom_publish_frequency>30</odom_publish_frequency>
-      <!-- gz::math::SpeedLimiter leaves each min_* at minus infinity unless it is set, not at
-           -max_*. Without them the robot would brake in one step and reverse or turn right at any
-           speed. -->
+      <!-- gz::math::SpeedLimiter does not mirror the max_* limits: a min_* left unset stays at
+           minus infinity. Without them the robot would brake in one step and reverse or turn right
+           at any speed. -->
       <max_linear_velocity>${max_speed}</max_linear_velocity>
       <min_linear_velocity>${-max_speed}</min_linear_velocity>
       <max_angular_velocity>${max_turn_rate}</max_angular_velocity>
@@ -354,7 +354,7 @@
       <topic>/joint_states</topic>
     </plugin>
     <!-- Ground truth for the experiments: the robot's true pose in the world frame, which is also
-         the map. Its transform goes to /ground_truth/tf, where nothing listens, never to /tf. -->
+         the map. Its transform goes to its own topic, /ground_truth/tf, which no node reads. -->
     <plugin filename="gz-sim-odometry-publisher-system"
             name="gz::sim::systems::OdometryPublisher">
       <odom_frame>map</odom_frame>

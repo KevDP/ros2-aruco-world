@@ -3,7 +3,7 @@
 Each experiment runs the simulation with no windows, takes the robot through a fixed scenario,
 compares what the robot measures with Gazebo's truth, and writes its numbers to
 `results/<experiment>/`. A report script turns those numbers into tables and figures. Reports
-need NumPy, Matplotlib and PyYAML, not ROS, and run on any machine.
+run without ROS, on any machine with NumPy, Matplotlib and PyYAML.
 
 | Experiment | Question | Scenario |
 | --- | --- | --- |
@@ -57,6 +57,6 @@ results/<experiment>/  the raw numbers (CSV), summary.md and the figures
   instead of driven there. That covers a grid evenly and keeps every sample independent. No node on
   the robot can do this: it is the experiment that talks to Gazebo.
 - The world's settings are read from the files the launch uses (`build_world.py`, the generated
-  configuration and the URDF), never from copies kept here.
+  configuration and the URDF). The experiments keep no copies of them.
 - Timing follows the simulation's clock, read from message stamps. A slower machine takes longer but
   measures the same thing.

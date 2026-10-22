@@ -43,7 +43,7 @@ def _render(marker_id: int, rvec: np.ndarray, tvec: np.ndarray) -> np.ndarray:
         [[-half, half, 0.0], [half, half, 0.0], [half, -half, 0.0], [-half, -half, 0.0]]
     )
     corners_px, _ = cv2.projectPoints(corners_3d, rvec, tvec, CAMERA, None)
-    # Map the texture's outer pixel edges, not its pixel centres, onto the projected corners.
+    # The projected corners land on the texture's outer pixel edges, at -0.5 and side - 0.5.
     edges = np.array(
         [[-0.5, -0.5], [side - 0.5, -0.5], [side - 0.5, side - 0.5], [-0.5, side - 0.5]],
         dtype=np.float32,

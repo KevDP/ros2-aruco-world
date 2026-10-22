@@ -46,5 +46,5 @@ def robot_properties() -> dict[str, float]:
         try:
             props[element.get("name")] = float(element.get("value"))
         except (TypeError, ValueError):
-            continue  # expressions and blocks, not plain numbers
+            continue  # skip expressions and blocks, keep plain numbers
     return props

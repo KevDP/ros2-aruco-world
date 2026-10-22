@@ -62,7 +62,7 @@ LABEL_COLOR = ColorRGBA(r=1.0, g=1.0, b=1.0, a=1.0)
 ARROW_LENGTH_M = 0.3
 ARROW_WIDTH_M = 0.04
 ELLIPSE_SIGMAS = 2.0
-PANEL_SIDE_M = 0.2  # drawn size only: the localizer needs where markers are, not how big
+PANEL_SIDE_M = 0.2  # only for drawing, since the localizer uses marker positions alone
 PANEL_THICKNESS_M = 0.01
 ELLIPSE_THICKNESS_M = 0.005  # a flat disc on the floor
 LABEL_HEIGHT_M = 0.12
