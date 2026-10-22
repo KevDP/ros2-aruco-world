@@ -1,8 +1,10 @@
-"""Detection and pose on synthetic images, where the true pose is known."""
+"""Detection and pose on synthetic images, where the true pose is known, and on crops of frames from
+the simulated camera."""
 
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -20,6 +22,7 @@ IMAGE_SIZE = (640, 480)
 # Pinhole camera with a 60 degree horizontal field of view at 640 px, like the simulated one.
 FOCAL_PX = 320 / math.tan(math.radians(30))
 CAMERA = np.array([[FOCAL_PX, 0.0, 320.0], [0.0, FOCAL_PX, 240.0], [0.0, 0.0, 1.0]])
+DATA = Path(__file__).parent / "data"
 
 
 def _marker_texture(marker_id: int, side_px: int = 200) -> tuple[np.ndarray, int]:
@@ -98,6 +101,17 @@ def test_viewing_angle_where_it_is_observable(turn_deg: float, distance: float):
     # A wrong axis convention misses by tens of degrees.
     viewing_angle = math.degrees(_detect_one(turn_deg, distance).viewing_angle)
     assert viewing_angle == pytest.approx(turn_deg, abs=5)
+
+
+@pytest.mark.parametrize("marker_id", [1, 4])
+def test_reads_markers_whose_cells_are_a_few_pixels_wide(marker_id: int):
+    # Crops of a frame from the simulated camera, with markers a few metres away and seen at an
+    # angle. Their cells are 3 to 4 px wide, and reading whole cells, OpenCV's default, drops both.
+    image = cv2.imread(str(DATA / f"turned_view_marker_{marker_id}.png"), cv2.IMREAD_GRAYSCALE)
+
+    detections = MarkerDetector(DICTIONARY).detect(image)
+
+    assert [d.marker_id for d in detections] == [marker_id]
 
 
 def test_without_calibration_markers_have_no_pose():

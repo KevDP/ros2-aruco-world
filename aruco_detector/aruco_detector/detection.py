@@ -15,6 +15,11 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
+# Cells are resampled at 6 px and 2 px are left out on every side when reading a bit. The docstring
+# of MarkerDetector explains why.
+PIXELS_PER_CELL = 6
+CELL_MARGIN = 0.34  # 2 of the 6 px: int(0.34 * 6) is 2, where 1/3 would round down to 1
+
 # ---------------------------------------------------------------------------
 # Detections
 # ---------------------------------------------------------------------------
@@ -64,6 +69,14 @@ class Detection:
         return self.rvec, self.tvec
 
 
+def _configure(parameters: cv2.aruco.DetectorParameters, cell_centres: bool) -> None:
+    """Subpixel corners, and the centre-third bit reading when asked for, on either OpenCV API."""
+    parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+    if cell_centres:
+        parameters.perspectiveRemovePixelPerCell = PIXELS_PER_CELL
+        parameters.perspectiveRemoveIgnoredMarginPerCell = CELL_MARGIN
+
+
 class MarkerDetector:
     """ArUco detection for one dictionary, on either OpenCV API.
 
@@ -73,9 +86,22 @@ class MarkerDetector:
     Corners are refined to subpixel precision. With four corners as the only input to the pose,
     rounding them to whole pixels shrinks the square and inflates the distance, more for a marker
     that looks small.
+
+    Each bit is read from the centre third of its cell. With OpenCV's defaults the whole cell
+    counts, because their 13% margin rounds down to no pixels at 4 px per cell. A few metres away a
+    cell is 3 or 4 px wide and its edges blur into its neighbours. One misread cell then rejects the
+    marker, because OpenCV corrects no bits for DICT_4X4_50, whose codes are only 4 bits apart.
+    AprilTag reads each cell at its centre as well.
     """
 
-    def __init__(self, dictionary_name: str) -> None:
+    def __init__(self, dictionary_name: str, cell_centres: bool = True) -> None:
+        """Set up detection for one dictionary.
+
+        Args:
+            dictionary_name: An OpenCV ArUco dictionary, such as DICT_4X4_50.
+            cell_centres: True leaves out the edges of every cell. False keeps OpenCV's default
+                reading of the whole cell, which the experiments use for comparison.
+        """
         if not dictionary_name.startswith("DICT_") or not hasattr(cv2.aruco, dictionary_name):
             raise ValueError(
                 f"unknown ArUco dictionary {dictionary_name!r}: expected a cv2.aruco.DICT_* name"
@@ -83,13 +109,13 @@ class MarkerDetector:
         self._dictionary = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary_name))
         if hasattr(cv2.aruco, "ArucoDetector"):  # OpenCV 4.7 and later
             parameters = cv2.aruco.DetectorParameters()
-            parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+            _configure(parameters, cell_centres)
             self._detector = cv2.aruco.ArucoDetector(self._dictionary, parameters)
             self._parameters = None
         else:  # OpenCV 4.6
             self._detector = None
             self._parameters = cv2.aruco.DetectorParameters_create()
-            self._parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+            _configure(self._parameters, cell_centres)
 
     def detect(
         self,
@@ -144,7 +170,7 @@ def estimate_pose(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Pose of a square marker from its four corners.
 
-    SOLVEPNP_SQPNP instead of SOLVEPNP_IPPE_SQUARE, the usual flag for markers. SQPnP finds the
+    Markers are often solved with SOLVEPNP_IPPE_SQUARE. This uses SOLVEPNP_SQPNP, which finds the
     global minimum of the reprojection error, and its answer never has the marker facing away from
     the camera.
 
