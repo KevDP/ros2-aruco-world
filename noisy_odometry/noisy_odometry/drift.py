@@ -1,8 +1,8 @@
 """Wheel odometry that drifts like a real robot's, made from the simulation's exact one, without ROS.
 
-Gazebo's wheel odometry barely drifts, unlike a real robot's. This module adds a random, zero-mean
-error to every step of motion and integrates it. The result drifts slowly and in no particular
-direction.
+Gazebo's wheel odometry barely drifts. To make it drift like a real robot's, this module adds a
+random, zero-mean error to every step of motion and integrates it. The result drifts slowly and in
+no particular direction.
 
 Each step's error variance is proportional to the step's length and turn, whatever the publishing
 rate. The errors add up as a random walk: after L metres the position has spread by about

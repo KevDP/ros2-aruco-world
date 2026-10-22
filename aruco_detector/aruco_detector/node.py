@@ -53,8 +53,8 @@ class ArucoDetectorNode(Node):
     def __init__(self) -> None:
         super().__init__("aruco_detector")
 
-        # Declared with a type and no default. get_parameter raises on one that was never set, and
-        # the node stops at start-up instead of running with a guess.
+        # Declared with a type and no default. get_parameter raises on one that was never set, which
+        # stops the node at start-up.
         self.declare_parameter("marker_length", Parameter.Type.DOUBLE)
         self.declare_parameter("dictionary", Parameter.Type.STRING)
         self.marker_length: float = self.get_parameter("marker_length").value
@@ -66,8 +66,8 @@ class ArucoDetectorNode(Node):
         self.dist_coeffs: np.ndarray | None = None
         self.ids_in_view: list[int] = []
 
-        # Sensor QoS drops late frames instead of queueing them. The names stay relative so a
-        # launch file can remap them to any camera.
+        # Sensor QoS drops late frames. The names stay relative so a launch file can remap them to
+        # any camera.
         self.create_subscription(Image, "image", self.on_image, qos_profile_sensor_data)
         self.create_subscription(
             CameraInfo, "camera_info", self.on_camera_info, qos_profile_sensor_data

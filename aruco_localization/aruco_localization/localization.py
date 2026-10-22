@@ -53,7 +53,7 @@ def pose_matrix(position: Sequence[float], quaternion: Sequence[float]) -> np.nd
 
 
 def invert(transform: np.ndarray) -> np.ndarray:
-    """Inverse of a rigid transform, using the rotation's transpose instead of a general inverse."""
+    """Inverse of a rigid transform, built from the transpose of its rotation."""
     rotation = transform[:3, :3]
     inverse = np.eye(4)
     inverse[:3, :3] = rotation.T

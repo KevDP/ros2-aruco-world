@@ -5,7 +5,7 @@ Each marker is described by where it is and which way it faces. The script works
 and writes one Gazebo model per marker (a thin panel with the marker texture), plus the world file
 that places them in the room with a few props. It also writes the detector's parameters
 (dictionary and marker size), the marker map the localizer reads and the robot's start pose. The
-launch reads those files instead of keeping copies of its own.
+launch reads those files and keeps no copies of its own.
 
 Run it from the package root (aruco_world/) whenever a marker or the room changes:
     python3 scripts/build_world.py
@@ -97,7 +97,7 @@ def _off_wall(down_deg: float = 0.0) -> float:
     """Distance from a wall to the centre of a panel on it, tilted down by ``down_deg``.
 
     A panel tilts about its centre and its lower edge swings toward the wall. This distance keeps
-    that edge touching the wall instead of sunk into it.
+    that edge touching the wall.
     """
     down = math.radians(down_deg)
     return PANEL_SIDE_M / 2 * math.sin(down) + PANEL_THICKNESS_M / 2 * math.cos(down)

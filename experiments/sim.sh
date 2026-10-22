@@ -47,7 +47,7 @@ stop() {
 }
 trap stop EXIT
 
-# With its type given, echo waits for the topic to appear instead of failing at once.
+# Given the message type, echo waits until the topic appears.
 if ! timeout 60 ros2 topic echo --once /ground_truth nav_msgs/msg/Odometry > /dev/null; then
   echo "the simulation did not start in 60 s; its log: $log" >&2
   exit 1

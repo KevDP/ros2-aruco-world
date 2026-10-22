@@ -136,7 +136,7 @@ Visualization Manager:
     - Class: rviz_default_plugins/LaserScan
       Name: Lidar
       Enabled: true
-      # Best effort, like a sensor: a late scan is dropped rather than queued.
+      # Best effort, like a sensor: a late scan is dropped.
       Topic:
         Value: /scan
         Depth: 5

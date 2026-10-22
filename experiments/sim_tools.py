@@ -24,7 +24,7 @@ ROBOT_NAME = "camera_bot"  # the name the launch spawns the robot with
 class RobotPlacer:
     """Moves the robot to a pose through Gazebo's own service, as a person would drag it.
 
-    It talks to Gazebo directly rather than through ROS: no node the robot runs can do this.
+    It talks to Gazebo directly. No node the robot runs can do this.
     """
 
     def __init__(self, timeout_ms: int = 2000) -> None:

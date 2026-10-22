@@ -8,7 +8,7 @@ shape) and writes, next to them:
     turning.gif  one turn trial per shape, played back: where the robot is and where it thinks it is
 
 It also prints what the odometry would report if each wheel pushed on the floor from the inner
-edge of its rim instead of its middle, from the URDF's wheel separation and width. Runs without
+edge of its rim, from the URDF's wheel separation and width. Runs without
 ROS, with NumPy, Matplotlib and PyYAML:
     python3 experiments/turning_report.py
 """
