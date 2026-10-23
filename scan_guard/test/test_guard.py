@@ -123,54 +123,84 @@ def test_speed_limit_by_zone(gap: float, limit: float) -> None:
 def test_a_clear_path_passes_the_command_unchanged() -> None:
     gate = CommandGate(ZONES)
     gate.command(0.5, 0.3)
-    assert gate.output(math.inf, math.inf) == (0.5, 0.3)
+    assert gate.output(math.inf, math.inf, 0.0) == (0.5, 0.3)
 
 
 def test_the_slow_zone_caps_the_speed_only_when_faster() -> None:
     gate = CommandGate(ZONES)
     gate.command(0.5, 0.0)
-    assert gate.output(0.5, math.inf) == (0.15, 0.0)
+    assert gate.output(0.5, math.inf, 0.0) == (0.15, 0.0)
     gate.command(0.1, 0.0)
-    assert gate.output(0.5, math.inf) == (0.1, 0.0)
+    assert gate.output(0.5, math.inf, 0.0) == (0.1, 0.0)
 
 
 def test_the_stop_zone_stops_driving_but_not_turning() -> None:
     gate = CommandGate(ZONES)
     gate.command(0.5, 0.4)
-    assert gate.output(0.2, math.inf) == (0.0, 0.4)
+    assert gate.output(0.2, math.inf, 0.0) == (0.0, 0.4)
 
 
-def test_a_stop_holds_after_the_obstacle_leaves() -> None:
+def test_a_stopped_robot_moves_on_once_the_way_stays_clear() -> None:
     gate = CommandGate(ZONES)
     gate.command(0.5, 0.0)
-    gate.output(0.2, math.inf)
-    assert gate.output(math.inf, math.inf) == (0.0, 0.0)
+    assert gate.output(0.2, math.inf, 0.0) == (0.0, 0.0)
+    assert gate.output(math.inf, math.inf, 0.1) == (0.0, 0.0)  # clear from here on
+    assert gate.output(math.inf, math.inf, 0.1 + ZONES.resume_delay - 0.01) == (0.0, 0.0)
+    assert gate.output(math.inf, math.inf, 0.1 + ZONES.resume_delay) == (0.5, 0.0)
+
+
+def test_noise_at_the_edge_of_the_stop_zone_does_not_release_a_stop() -> None:
+    gate = CommandGate(ZONES)
     gate.command(0.5, 0.0)
-    assert gate.output(math.inf, math.inf) == (0.5, 0.0)
+    gate.output(0.28, math.inf, 0.0)
+    edge = ZONES.stop_distance + ZONES.resume_margin
+    for t in np.arange(0.05, 5.0, 0.05):
+        assert gate.output(edge - 0.001, math.inf, t) == (0.0, 0.0)
+
+
+def test_the_wait_starts_over_when_the_way_closes_again() -> None:
+    gate = CommandGate(ZONES)
+    gate.command(0.5, 0.0)
+    gate.output(0.2, math.inf, 0.0)
+    gate.output(math.inf, math.inf, 0.1)
+    gate.output(0.2, math.inf, 0.5)  # something steps back in
+    gate.output(math.inf, math.inf, 0.6)
+    assert gate.output(math.inf, math.inf, 0.1 + ZONES.resume_delay) == (0.0, 0.0)
+    assert gate.output(math.inf, math.inf, 0.6 + ZONES.resume_delay) == (0.5, 0.0)
+
+
+def test_a_stop_does_not_hold_back_driving_away() -> None:
+    gate = CommandGate(ZONES)
+    gate.command(0.5, 0.0)
+    gate.output(0.2, math.inf, 0.0)
+    gate.command(-0.3, 0.0)
+    assert gate.output(0.2, math.inf, 0.05) == (-0.3, 0.0)
 
 
 def test_only_the_direction_of_travel_is_checked() -> None:
     gate = CommandGate(ZONES)
     gate.command(0.5, 0.0)
-    assert gate.output(math.inf, 0.1) == (0.5, 0.0)  # blocked behind, driving forward
+    assert gate.output(math.inf, 0.1, 0.0) == (0.5, 0.0)  # blocked behind, driving forward
     gate.command(-0.5, 0.0)
-    assert gate.output(math.inf, 0.1) == (0.0, 0.0)
+    assert gate.output(math.inf, 0.1, 0.0) == (0.0, 0.0)
     gate.command(-0.5, 0.0)
-    assert gate.output(math.inf, 0.5) == (-0.15, 0.0)
+    assert gate.output(math.inf, 0.5, 0.0) == (0.0, 0.0)  # clear, but only just
+    assert gate.output(math.inf, 0.5, ZONES.resume_delay) == (-0.15, 0.0)
 
 
 def test_halt_drops_the_whole_command() -> None:
     gate = CommandGate(ZONES)
     gate.command(0.5, 0.4)
+    gate.output(0.2, math.inf, 0.0)
     gate.halt()
-    assert gate.output(math.inf, math.inf) == (0.0, 0.0)
+    assert gate.output(math.inf, math.inf, 5.0) == (0.0, 0.0)
 
 
 def test_from_scan_to_command() -> None:
     gate = CommandGate(ZONES)
     gate.command(0.5, 0.0)
-    assert gate.output(*_gaps(_scan([(ROBOT.front + 0.5, 0.0)]))) == (0.15, 0.0)
-    assert gate.output(*_gaps(_scan([(ROBOT.front + 0.2, 0.0)]))) == (0.0, 0.0)
+    assert gate.output(*_gaps(_scan([(ROBOT.front + 0.5, 0.0)])), 0.0) == (0.15, 0.0)
+    assert gate.output(*_gaps(_scan([(ROBOT.front + 0.2, 0.0)])), 0.05) == (0.0, 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -186,6 +216,8 @@ def test_from_scan_to_command() -> None:
         {"stop_distance": 0.3, "slow_distance": 0.8, "slow_speed": 0.0},
         {"stop_distance": 0.3, "slow_distance": 0.8, "slow_speed": 0.15, "side_margin": -0.1},
         {"stop_distance": 0.3, "slow_distance": 0.8, "slow_speed": 0.15, "min_points": 0},
+        {"stop_distance": 0.3, "slow_distance": 0.8, "slow_speed": 0.15, "resume_margin": -0.1},
+        {"stop_distance": 0.3, "slow_distance": 0.8, "slow_speed": 0.15, "resume_delay": -1.0},
     ],
 )
 def test_bad_zones_are_rejected(kwargs: dict[str, float]) -> None:

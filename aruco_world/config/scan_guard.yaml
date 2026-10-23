@@ -2,16 +2,18 @@
 # the robot's real size.
 scan_guard:
   ros__parameters:
-    # Metres past the robot's leading edge. From the DiffDrive's top speed (0.6 m/s at 1 m/s^2),
-    # reaching slow_speed takes about 0.17 m plus one scan of travel (0.06 m), well inside the
-    # 0.5 m between the zones. Stopping from slow_speed then takes about 1 cm, and the rest is
-    # margin.
+    # Metres past the robot's leading edge. The stop zone holds a stop from the DiffDrive's top
+    # speed (0.6 m/s at 1 m/s^2) for something that appears inside the slow zone: a lidar period
+    # and a guard cycle of travel (0.09 m) plus braking (0.18 m). From the top speed, reaching
+    # slow_speed takes about 0.17 m plus that reaction, inside the 0.5 m between the zones.
     stop_distance: 0.30
     slow_distance: 0.80
     slow_speed: 0.15  # m/s
     side_margin: 0.05  # m on each side of the robot
     min_points: 2
-    # Wall-clock seconds without a scan before the robot is held still. The simulation can run
+    resume_margin: 0.05  # m past the stop zone that must be clear before a stopped robot moves on
+    resume_delay: 1.0  # s the way has to stay that clear
+    # Seconds of real time without a scan before the robot is held still. The simulation can run
     # slower than real time, which spaces the scans out.
     scan_timeout: 0.5
     rate: 20.0  # Hz

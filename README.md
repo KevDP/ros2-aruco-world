@@ -124,12 +124,13 @@ about 1 cm of noise.
 `scan_guard` sits between whoever drives and the robot. It reads the driver's command on
 `/cmd_vel_teleop` and the scan on `/scan`, and it is the only node that publishes on `/cmd_vel`.
 
-- An obstacle in the **stop zone**, just past the robot's leading edge, stops the robot and
-  discards the command. After the obstacle leaves, the robot stays put until it gets a new command.
+- An obstacle in the **stop zone**, just past the robot's leading edge, stops the robot. The guard
+  keeps the command, and the robot goes on with it once the obstacle is gone.
 - An obstacle in the **slow zone**, further out, caps the speed.
 - Both zones match the robot's width plus a margin. Only the direction of travel is checked, and a
   robot blocked ahead can still back away.
-- Without a recent scan, it sends zero velocity.
+- Without a recent scan, it sends zero velocity and drops the command. A sensor that went quiet
+  needs someone to look at it, and the robot waits for a new command.
 
 It also draws the zones on `/scan_guard/zones` for RViz, faint while clear and solid while
 something is in them.
@@ -249,8 +250,13 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
   anything that can veto a command to sit in between. A planner added later only needs its output
   remapped, with no change to the guard or the bridge.
 - The guard holds the robot when it lacks data: no recent scan, or no TF yet for the lidar. Scan age
-  is measured in wall time, and a paused simulation holds the robot too.
-- A stop holds until the robot gets a new command. A slowdown lifts as soon as the way clears.
+  and the command timer use a clock that never runs backwards. A paused simulation still holds the
+  robot. A wall clock set back by NTP or by a virtual machine's time sync does not interrupt the
+  commands.
+- After a stop, the robot moves on with the same command once the way has been clear for a moment,
+  long enough for whoever stepped in front to step away. The way also has to be clear a little past
+  the stop zone, because lidar noise at the edge would otherwise release the robot. A slowdown lifts
+  as soon as the way clears.
 - The robot's outline comes from the URDF's properties, and only the zone sizes live in
   `config/scan_guard.yaml`. The guard's core (`scan_guard/scan_guard/guard.py`) has no ROS
   dependency and is tested on synthetic scans with obstacles at known positions.

@@ -16,6 +16,10 @@ Parameters:
     slow_speed (double, required): speed cap in the slow zone, in m/s.
     side_margin (double, default 0.05): extra width on each side of the robot, in metres.
     min_points (int, default 2): returns an obstacle needs before it counts.
+    resume_margin (double, default 0.05): free distance past the stop zone, in metres, needed to
+        release a stop.
+    resume_delay (double, default 1.0): seconds that distance must stay free before the robot
+        moves on.
     scan_timeout (double, default 0.5): seconds without a scan before the robot is held still.
     rate (double, default 20.0): how often the command is sent, in Hz.
     base_frame (string, default base_footprint): the frame the outline is given in.
@@ -33,6 +37,7 @@ from typing import Any
 
 import rclpy
 from geometry_msgs.msg import Twist
+from rclpy.clock import Clock, ClockType
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.parameter import Parameter
@@ -72,6 +77,8 @@ class ScanGuardNode(Node):
             self.declare_parameter(name, Parameter.Type.DOUBLE)
         self.declare_parameter("side_margin", 0.05)
         self.declare_parameter("min_points", 2)
+        self.declare_parameter("resume_margin", 0.05)
+        self.declare_parameter("resume_delay", 1.0)
         self.declare_parameter("scan_timeout", 0.5)
         self.declare_parameter("rate", 20.0)
         self.declare_parameter("base_frame", "base_footprint")
@@ -85,6 +92,8 @@ class ScanGuardNode(Node):
             slow_speed=self._param("slow_speed"),
             side_margin=self._param("side_margin"),
             min_points=self._param("min_points"),
+            resume_margin=self._param("resume_margin"),
+            resume_delay=self._param("resume_delay"),
         )
         self.scan_timeout: float = self._param("scan_timeout")
         self.base_frame: str = self._param("base_frame")
@@ -104,7 +113,10 @@ class ScanGuardNode(Node):
         self.create_subscription(Twist, "cmd_vel_in", self.on_command, 10)
         self.cmd_pub = self.create_publisher(Twist, "cmd_vel_out", 10)
         self.zones_pub = self.create_publisher(MarkerArray, "scan_guard/zones", 10)
-        self.create_timer(1.0 / self._param("rate"), self.on_timer)
+        # On the steady clock, which only moves forward. A timer on the wall clock goes quiet each
+        # time that clock is set back, and the wheels keep their last command until it catches up.
+        steady = Clock(clock_type=ClockType.STEADY_TIME)
+        self.create_timer(1.0 / self._param("rate"), self.on_timer, clock=steady)
 
         # Logs the remapped names: a teleop pointed at the wrong topic shows up here.
         self.get_logger().info(
@@ -157,23 +169,22 @@ class ScanGuardNode(Node):
         self.gate.command(msg.linear.x, msg.angular.z)
 
     def on_timer(self) -> None:
-        # Wall time on purpose: a paused or stalled simulation stops the scans, and that is exactly
+        # Real time on purpose: a paused or stalled simulation stops the scans, and that is exactly
         # when the robot must not move.
-        holding = time.monotonic() - self.last_scan > self.scan_timeout
+        now = time.monotonic()
+        holding = now - self.last_scan > self.scan_timeout
         if holding:
             self.gate.halt()
             linear, angular = 0.0, 0.0
         else:
-            held = self.gate.linear
-            linear, angular = self.gate.output(*self.gaps)
-            if held != 0.0 and self.gate.linear == 0.0:
-                gap = self.gaps[0] if held > 0 else self.gaps[1]
-                way = "ahead" if held > 0 else "behind"
-                # Throttled: a held teleop key repeats the refused command many times a second.
-                self.get_logger().info(
-                    f"stopped: obstacle {gap:.2f} m {way}; waiting for a command",
-                    throttle_duration_sec=1.0,
-                )
+            was_stopped = self.gate.stopped
+            linear, angular = self.gate.output(*self.gaps, now)
+            if self.gate.stopped and not was_stopped:
+                gap = self.gaps[0] if self.gate.stopped > 0 else self.gaps[1]
+                way = "ahead" if self.gate.stopped > 0 else "behind"
+                self.get_logger().info(f"stopped: obstacle {gap:.2f} m {way}")
+            elif was_stopped and not self.gate.stopped and linear != 0.0:
+                self.get_logger().info("way clear: moving on")
         if holding != self.holding:
             if not holding:
                 self.get_logger().info("scans arriving: waiting for a command")

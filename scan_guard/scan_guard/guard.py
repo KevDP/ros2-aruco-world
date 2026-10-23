@@ -5,7 +5,8 @@ the tests can drive it with synthetic scans.
 
 Two zones lie past the robot's edge in the direction it drives, each as wide as the robot plus a
 margin. An obstacle in the stop zone stops any motion that way, and one in the slow zone caps the
-speed. Turning in place is never limited.
+speed. A stopped robot moves on by itself once the way stays clear. Turning in place is never
+limited.
 
 Frames follow REP 103: x forward, y left, angles counter-clockwise from x.
 """
@@ -53,6 +54,8 @@ class Zones:
         slow_speed: Speed cap inside the slow zone (m/s).
         side_margin: Clearance added on each side of the robot (m).
         min_points: Returns an obstacle needs to count. With 2, a lone stray return is ignored.
+        resume_margin: Extra room past the stop zone that has to be free before a stop ends (m).
+        resume_delay: How long, in seconds, that room has to stay free.
     """
 
     stop_distance: float
@@ -60,6 +63,8 @@ class Zones:
     slow_speed: float
     side_margin: float = 0.05
     min_points: int = 2
+    resume_margin: float = 0.05
+    resume_delay: float = 1.0
 
     def __post_init__(self) -> None:
         if not 0 < self.stop_distance < self.slow_distance:
@@ -73,6 +78,10 @@ class Zones:
             raise ValueError(f"side_margin cannot be negative, got {self.side_margin}")
         if self.min_points < 1:
             raise ValueError(f"min_points must be at least 1, got {self.min_points}")
+        if self.resume_margin < 0:
+            raise ValueError(f"resume_margin cannot be negative, got {self.resume_margin}")
+        if self.resume_delay < 0:
+            raise ValueError(f"resume_delay cannot be negative, got {self.resume_delay}")
 
 
 @dataclass(frozen=True)
@@ -165,14 +174,17 @@ def speed_limit(gap: float, zones: Zones) -> float:
 class CommandGate:
     """Holds the last velocity command and passes on what the zones allow of it.
 
-    A stop drops the held command's linear part. A robot stopped by an obstacle stays stopped after
-    the obstacle leaves, until it gets a new command. The slow zone only caps the speed.
+    An obstacle in the stop zone stops the robot, and the command is kept. The robot moves on with
+    it once nothing has been within ``resume_margin`` of the stop zone for ``resume_delay``
+    seconds. Driving the other way is never held back by a stop. The slow zone only caps the speed.
     """
 
     def __init__(self, zones: Zones) -> None:
         self.zones = zones
         self.linear = 0.0  # m/s, forward positive
         self.angular = 0.0  # rad/s, counter-clockwise positive
+        self.stopped = 0  # the way a stop holds the robot: 1 ahead, -1 behind, 0 none
+        self.clear_since: float | None = None  # when the way became clear enough after a stop
 
     def command(self, linear: float, angular: float) -> None:
         """Hold a new command."""
@@ -181,17 +193,36 @@ class CommandGate:
     def halt(self) -> None:
         """Drop the held command entirely, as when the lidar goes quiet."""
         self.linear = self.angular = 0.0
+        self.stopped, self.clear_since = 0, None
 
-    def output(self, gap_front: float, gap_rear: float) -> tuple[float, float]:
+    def output(self, gap_front: float, gap_rear: float, now: float) -> tuple[float, float]:
         """The command to send now, given the free distance ahead and behind.
+
+        Args:
+            gap_front: Free metres ahead of the front edge.
+            gap_rear: Free metres behind the rear edge.
+            now: Seconds on a clock that only moves forward, to time how long the way stays clear.
 
         Returns:
             Linear (m/s) and angular (rad/s) velocity.
         """
         if self.linear == 0.0:
             return 0.0, self.angular
-        limit = speed_limit(gap_front if self.linear > 0 else gap_rear, self.zones)
+        direction = 1 if self.linear > 0 else -1
+        gap = gap_front if direction == 1 else gap_rear
+        if self.stopped and self.stopped != direction:
+            self.stopped, self.clear_since = 0, None  # heading away from what stopped it
+        if self.stopped:
+            if gap <= self.zones.stop_distance + self.zones.resume_margin:
+                self.clear_since = None
+                return 0.0, self.angular
+            if self.clear_since is None:
+                self.clear_since = now
+            if now - self.clear_since < self.zones.resume_delay:
+                return 0.0, self.angular
+            self.stopped, self.clear_since = 0, None
+        limit = speed_limit(gap, self.zones)
         if limit == 0.0:
-            self.linear = 0.0  # stopped: wait for a new command
+            self.stopped = direction
             return 0.0, self.angular
         return math.copysign(min(abs(self.linear), limit), self.linear), self.angular
