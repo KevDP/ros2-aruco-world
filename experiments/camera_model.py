@@ -10,7 +10,7 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
-from world import load_world, robot_properties
+from world import load_world, robot_properties, solids
 
 # Camera optical frame in the robot's base frame: columns are the optical x, y and z axes.
 BASE_FROM_OPTICAL = np.array([[0, 0, 1], [-1, 0, 0], [0, -1, 0]], dtype=float)
@@ -76,6 +76,7 @@ class CameraModel:
         self.width, self.height = size
         self._camera_x, self._camera_z = props["camera_x"], props["camera_z"]
         half, panel = world.MARKER_SIDE_M / 2, world.PANEL_SIDE_M / 2
+        blocks = solids(world)
         self._markers = []
         self._posts = {}  # marker id to the (low, high) corners of the post under it
         for p in world.PLACEMENTS:
@@ -90,17 +91,9 @@ class CameraModel:
             )
             self._markers.append((p.marker_id, p.mount, centre, normal, square, outline))
             if p.mount == "post":
-                x, y = centre[:2] - world.POST_SETBACK_M * normal[:2]
-                h, r = centre[2] - half, world.POST_SIDE_M / 2
-                self._posts[p.marker_id] = (
-                    np.array([x - r, y - r, 0.0]),
-                    np.array([x + r, y + r, h]),
-                )
-        (bx, by), (sx, sy, sz) = world.BOX_CENTRE, world.BOX_SIZE
-        self._box = (
-            np.array([bx - sx / 2, by - sy / 2, 0.0]),
-            np.array([bx + sx / 2, by + sy / 2, sz]),
-        )
+                post = blocks[f"post_{p.marker_id}"]
+                self._posts[p.marker_id] = (np.array(post.low), np.array(post.high))
+        self._box = (np.array(blocks["box"].low), np.array(blocks["box"].high))
 
     def markers_in_view(
         self, pose: tuple[float, float, float], whole_panel: bool = True, unhidden: bool = True

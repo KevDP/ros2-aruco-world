@@ -8,6 +8,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 
@@ -55,3 +56,42 @@ def robot_properties() -> dict[str, float]:
         except (TypeError, ValueError):
             continue  # skip expressions and blocks, keep plain numbers
     return props
+
+
+@dataclass(frozen=True)
+class Solid:
+    """A block standing on the floor with its sides along x and y.
+
+    Attributes:
+        low: Corner with the smallest x, y and z, in metres.
+        high: Corner with the largest x, y and z.
+    """
+
+    low: tuple[float, float, float]
+    high: tuple[float, float, float]
+
+
+def _solid(centre: tuple[float, float], size: tuple[float, float, float]) -> Solid:
+    (x, y), (sx, sy, sz) = centre, size
+    return Solid((x - sx / 2, y - sy / 2, 0.0), (x + sx / 2, y + sy / 2, sz))
+
+
+def solids(world: ModuleType | None = None) -> dict[str, Solid]:
+    """What the robot can run into: the four walls, the box and the post under each post marker.
+
+    Keyed by the names build_world.py gives them: wall_front, box, post_0 and so on. The marker
+    panels are left out. Those on posts hang above the robot, and the rest lie flat on a wall, the
+    box or the floor.
+
+    Args:
+        world: build_world.py as load_world() returns it, to save loading it again.
+    """
+    world = world or load_world()
+    found = {name: _solid(centre[:2], size) for name, centre, size in world.walls()}
+    found["box"] = _solid(world.BOX_CENTRE, world.BOX_SIZE)
+    for p in world.PLACEMENTS:
+        if p.mount == "post":
+            x, y, height = world.post_under(p)
+            side = world.POST_SIDE_M
+            found[f"post_{p.marker_id}"] = _solid((x, y), (side, side, height))
+    return found
