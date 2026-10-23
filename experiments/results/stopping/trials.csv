@@ -1,0 +1,305 @@
+trial,kind,target,setting,speed,repeat,start_x,start_y,start_yaw,obstacle_x,obstacle_y,obstacle_at,removed_at,ended
+0,approach,wall,0,0.15,0,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+1,approach,wall,0,0.3,0,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+2,approach,wall,0,0.45,0,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+3,approach,wall,0,0.6,0,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+4,approach,wall,15,0.15,0,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+5,approach,wall,15,0.3,0,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+6,approach,wall,15,0.45,0,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+7,approach,wall,15,0.6,0,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+8,approach,wall,30,0.15,0,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+9,approach,wall,30,0.3,0,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+10,approach,wall,30,0.45,0,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+11,approach,wall,30,0.6,0,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+12,approach,wall,45,0.15,0,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+13,approach,wall,45,0.3,0,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+14,approach,wall,45,0.45,0,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+15,approach,wall,45,0.6,0,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+16,approach,wall,60,0.15,0,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+17,approach,wall,60,0.3,0,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+18,approach,wall,60,0.45,0,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+19,approach,wall,60,0.6,0,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+20,approach,wall,75,0.15,0,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+21,approach,wall,75,0.3,0,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+22,approach,wall,75,0.45,0,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+23,approach,wall,75,0.6,0,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+24,approach,post,0.0,0.15,0,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+25,approach,post,0.0,0.3,0,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+26,approach,post,0.0,0.45,0,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+27,approach,post,0.0,0.6,0,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+28,approach,post,0.08,0.15,0,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+29,approach,post,0.08,0.3,0,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+30,approach,post,0.08,0.45,0,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+31,approach,post,0.08,0.6,0,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+32,approach,post,0.16,0.15,0,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+33,approach,post,0.16,0.3,0,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+34,approach,post,0.16,0.45,0,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+35,approach,post,0.16,0.6,0,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+36,approach,post,0.24,0.15,0,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+37,approach,post,0.24,0.3,0,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+38,approach,post,0.24,0.45,0,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+39,approach,post,0.24,0.6,0,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+40,approach,box,face,0.15,0,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+41,approach,box,face,0.3,0,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+42,approach,box,face,0.45,0,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+43,approach,box,face,0.6,0,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+44,approach,box,corner,0.15,0,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+45,approach,box,corner,0.3,0,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+46,approach,box,corner,0.45,0,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+47,approach,box,corner,0.6,0,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+48,approach,wall,0,0.15,1,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+49,approach,wall,0,0.3,1,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+50,approach,wall,0,0.45,1,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+51,approach,wall,0,0.6,1,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+52,approach,wall,15,0.15,1,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+53,approach,wall,15,0.3,1,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+54,approach,wall,15,0.45,1,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+55,approach,wall,15,0.6,1,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+56,approach,wall,30,0.15,1,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+57,approach,wall,30,0.3,1,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+58,approach,wall,30,0.45,1,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+59,approach,wall,30,0.6,1,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+60,approach,wall,45,0.15,1,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+61,approach,wall,45,0.3,1,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+62,approach,wall,45,0.45,1,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+63,approach,wall,45,0.6,1,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+64,approach,wall,60,0.15,1,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+65,approach,wall,60,0.3,1,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+66,approach,wall,60,0.45,1,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+67,approach,wall,60,0.6,1,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+68,approach,wall,75,0.15,1,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+69,approach,wall,75,0.3,1,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+70,approach,wall,75,0.45,1,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+71,approach,wall,75,0.6,1,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+72,approach,post,0.0,0.15,1,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+73,approach,post,0.0,0.3,1,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+74,approach,post,0.0,0.45,1,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+75,approach,post,0.0,0.6,1,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+76,approach,post,0.08,0.15,1,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+77,approach,post,0.08,0.3,1,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+78,approach,post,0.08,0.45,1,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+79,approach,post,0.08,0.6,1,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+80,approach,post,0.16,0.15,1,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+81,approach,post,0.16,0.3,1,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+82,approach,post,0.16,0.45,1,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+83,approach,post,0.16,0.6,1,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+84,approach,post,0.24,0.15,1,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+85,approach,post,0.24,0.3,1,-1.8700,0.2400,0.0000,nan,nan,nan,nan,stopped
+86,approach,post,0.24,0.45,1,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+87,approach,post,0.24,0.6,1,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+88,approach,box,face,0.15,1,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+89,approach,box,face,0.3,1,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+90,approach,box,face,0.45,1,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+91,approach,box,face,0.6,1,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+92,approach,box,corner,0.15,1,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+93,approach,box,corner,0.3,1,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+94,approach,box,corner,0.45,1,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+95,approach,box,corner,0.6,1,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+96,approach,wall,0,0.15,2,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+97,approach,wall,0,0.3,2,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+98,approach,wall,0,0.45,2,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+99,approach,wall,0,0.6,2,-1.6200,1.2000,3.1416,nan,nan,nan,nan,stopped
+100,approach,wall,15,0.15,2,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+101,approach,wall,15,0.3,2,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+102,approach,wall,15,0.45,2,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+103,approach,wall,15,0.6,2,-1.7011,0.5840,2.8798,nan,nan,nan,nan,stopped
+104,approach,wall,30,0.15,2,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+105,approach,wall,30,0.3,2,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+106,approach,wall,30,0.45,2,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+107,approach,wall,30,0.6,2,-1.9389,0.0100,2.6180,nan,nan,nan,nan,stopped
+108,approach,wall,45,0.15,2,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+109,approach,wall,45,0.3,2,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+110,approach,wall,45,0.45,2,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+111,approach,wall,45,0.6,2,-2.3171,-0.4829,2.3562,nan,nan,nan,nan,stopped
+112,approach,wall,60,0.15,2,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+113,approach,wall,60,0.3,2,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+114,approach,wall,60,0.45,2,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+115,approach,wall,60,0.6,2,-2.8100,-0.8611,2.0944,nan,nan,nan,nan,stopped
+116,approach,wall,75,0.15,2,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+117,approach,wall,75,0.3,2,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+118,approach,wall,75,0.45,2,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+119,approach,wall,75,0.6,2,-3.3840,-1.0989,1.8326,nan,nan,nan,nan,stopped
+120,approach,post,0.0,0.15,2,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+121,approach,post,0.0,0.3,2,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+122,approach,post,0.0,0.45,2,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+123,approach,post,0.0,0.6,2,-1.8700,-0.0000,0.0000,nan,nan,nan,nan,stopped
+124,approach,post,0.08,0.15,2,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+125,approach,post,0.08,0.3,2,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+126,approach,post,0.08,0.45,2,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+127,approach,post,0.08,0.6,2,-1.8700,0.0800,0.0000,nan,nan,nan,nan,stopped
+128,approach,post,0.16,0.15,2,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+129,approach,post,0.16,0.3,2,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+130,approach,post,0.16,0.45,2,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+131,approach,post,0.16,0.6,2,-1.8700,0.1600,0.0000,nan,nan,nan,nan,stopped
+132,approach,post,0.24,0.15,2,-1.8700,0.2400,0.0000,nan,nan,nan,nan,stopped
+133,approach,post,0.24,0.3,2,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+134,approach,post,0.24,0.45,2,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+135,approach,post,0.24,0.6,2,-1.8700,0.2400,0.0000,nan,nan,nan,nan,passed
+136,approach,box,face,0.15,2,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+137,approach,box,face,0.3,2,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+138,approach,box,face,0.45,2,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+139,approach,box,face,0.6,2,-0.6800,2.4000,0.0000,nan,nan,nan,nan,stopped
+140,approach,box,corner,0.15,2,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+141,approach,box,corner,0.3,2,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+142,approach,box,corner,0.45,2,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+143,approach,box,corner,0.6,2,0.0171,0.4171,0.7854,nan,nan,nan,nan,stopped
+144,appear,box in the way,0.1,0.15,0,-2.6000,-3.2000,1.5708,-2.6000,-0.7987,1681.6420,1683.6490,stopped
+145,appear,box in the way,0.1,0.3,0,-2.6000,-3.2000,1.5708,-2.6000,-0.7967,1693.7120,1695.8890,stopped
+146,appear,box in the way,0.1,0.45,0,-2.6000,-3.2000,1.5708,-2.6000,-0.7871,1703.8110,1705.7840,stopped
+147,appear,box in the way,0.1,0.6,0,-2.6000,-3.2000,1.5708,-2.6000,-0.7827,1712.6170,1714.5220,stopped
+148,appear,box in the way,0.15,0.15,0,-2.6000,-3.2000,1.5708,-2.6000,-0.7490,1731.2830,1733.2210,stopped
+149,appear,box in the way,0.15,0.3,0,-2.6000,-3.2000,1.5708,-2.6000,-0.7467,1743.3520,1745.4600,stopped
+150,appear,box in the way,0.15,0.45,0,-2.6000,-3.2000,1.5708,-2.6000,-0.7358,1753.3490,1755.6300,stopped
+151,appear,box in the way,0.15,0.6,0,-2.6000,-3.2000,1.5708,-2.6000,-0.7405,1762.5620,1764.6020,stopped
+152,appear,box in the way,0.2,0.15,0,-2.6000,-3.2000,1.5708,-2.6000,-0.6976,1781.3650,1783.3380,stopped
+153,appear,box in the way,0.2,0.3,0,-2.6000,-3.2000,1.5708,-2.6000,-0.6967,1793.5000,1795.6800,stopped
+154,appear,box in the way,0.2,0.45,0,-2.6000,-3.2000,1.5708,-2.6000,-0.6921,1803.4650,1805.7420,stopped
+155,appear,box in the way,0.2,0.6,0,-2.6000,-3.2000,1.5708,-2.6000,-0.6965,1812.6120,1814.7200,stopped
+156,appear,box in the way,0.25,0.15,0,-2.6000,-3.2000,1.5708,-2.6000,-0.6455,1831.4810,1833.4870,stopped
+157,appear,box in the way,0.25,0.3,0,-2.6000,-3.2000,1.5708,-2.6000,-0.6485,1843.5850,1845.6930,stopped
+158,appear,box in the way,0.25,0.45,0,-2.6000,-3.2000,1.5708,-2.6000,-0.6398,1853.5800,1855.8590,stopped
+159,appear,box in the way,0.25,0.6,0,-2.6000,-3.2000,1.5708,-2.6000,-0.6381,1862.7950,1865.2090,stopped
+160,appear,box in the way,0.3,0.15,0,-2.6000,-3.2000,1.5708,-2.6000,-0.5963,1882.0730,1884.0460,stopped
+161,appear,box in the way,0.3,0.3,0,-2.6000,-3.2000,1.5708,-2.6000,-0.5967,1894.1760,1896.2850,stopped
+162,appear,box in the way,0.3,0.45,0,-2.6000,-3.2000,1.5708,-2.6000,-0.5939,1904.1730,1906.4510,stopped
+163,appear,box in the way,0.3,0.6,0,-2.6000,-3.2000,1.5708,-2.6000,-0.5809,1913.4210,1915.9040,stopped
+164,appear,box in the way,0.33,0.15,0,-2.6000,-3.2000,1.5708,-2.6000,-0.5688,1932.7670,1934.8400,stopped
+165,appear,box in the way,0.33,0.3,0,-2.6000,-3.2000,1.5708,-2.6000,-0.5640,1945.0060,1947.1830,stopped
+166,appear,box in the way,0.33,0.45,0,-2.6000,-3.2000,1.5708,-2.6000,-0.5670,1955.0360,1957.3170,stopped
+167,appear,box in the way,0.33,0.6,0,-2.6000,-3.2000,1.5708,-2.6000,-0.5545,1964.2840,1966.6650,stopped
+168,appear,box in the way,0.45,0.15,0,-2.6000,-3.2000,1.5708,-2.6000,-0.4490,1983.4260,1986.3510,stopped
+169,appear,box in the way,0.45,0.3,0,-2.6000,-3.2000,1.5708,-2.6000,-0.4497,1996.4150,1999.0320,stopped
+170,appear,box in the way,0.45,0.45,0,-2.6000,-3.2000,1.5708,-2.6000,-0.4353,2007.0560,2009.4040,stopped
+171,appear,box in the way,0.45,0.6,0,-2.6000,-3.2000,1.5708,-2.6000,-0.4393,2016.3390,2018.7870,stopped
+172,appear,box in the way,0.6,0.15,0,-2.6000,-3.2000,1.5708,-2.6000,-0.2981,2035.5150,2039.3570,stopped
+173,appear,box in the way,0.6,0.3,0,-2.6000,-3.2000,1.5708,-2.6000,-0.2943,2049.5230,2053.1280,stopped
+174,appear,box in the way,0.6,0.45,0,-2.6000,-3.2000,1.5708,-2.6000,-0.2943,2061.0820,2064.5520,stopped
+175,appear,box in the way,0.6,0.6,0,-2.6000,-3.2000,1.5708,-2.6000,-0.2977,2071.4520,2074.3440,stopped
+176,appear,box in the way,0.1,0.15,1,-2.6000,-3.2000,1.5708,-2.6000,-0.7961,2091.1740,2093.1440,stopped
+177,appear,box in the way,0.1,0.3,1,-2.6000,-3.2000,1.5708,-2.6000,-0.7943,2103.3110,2105.4870,stopped
+178,appear,box in the way,0.1,0.45,1,-2.6000,-3.2000,1.5708,-2.6000,-0.7903,2113.3410,2115.3130,stopped
+179,appear,box in the way,0.1,0.6,1,-2.6000,-3.2000,1.5708,-2.6000,-0.7827,2122.2150,2124.1180,stopped
+180,appear,box in the way,0.15,0.15,1,-2.6000,-3.2000,1.5708,-2.6000,-0.7470,2140.9480,2142.9560,stopped
+181,appear,box in the way,0.15,0.3,1,-2.6000,-3.2000,1.5708,-2.6000,-0.7476,2153.0190,2155.1960,stopped
+182,appear,box in the way,0.15,0.45,1,-2.6000,-3.2000,1.5708,-2.6000,-0.7479,2163.0150,2165.1590,stopped
+183,appear,box in the way,0.15,0.6,1,-2.6000,-3.2000,1.5708,-2.6000,-0.7375,2172.0580,2174.0660,stopped
+184,appear,box in the way,0.2,0.15,1,-2.6000,-3.2000,1.5708,-2.6000,-0.6994,2190.7920,2192.7310,stopped
+185,appear,box in the way,0.2,0.3,1,-2.6000,-3.2000,1.5708,-2.6000,-0.6931,2202.8620,2205.0080,stopped
+186,appear,box in the way,0.2,0.45,1,-2.6000,-3.2000,1.5708,-2.6000,-0.6939,2212.9600,2215.2060,stopped
+187,appear,box in the way,0.2,0.6,1,-2.6000,-3.2000,1.5708,-2.6000,-0.6989,2222.2090,2224.3510,stopped
+188,appear,box in the way,0.25,0.15,1,-2.6000,-3.2000,1.5708,-2.6000,-0.6476,2241.0790,2243.0510,stopped
+189,appear,box in the way,0.25,0.3,1,-2.6000,-3.2000,1.5708,-2.6000,-0.6500,2253.1830,2255.3250,stopped
+190,appear,box in the way,0.25,0.45,1,-2.6000,-3.2000,1.5708,-2.6000,-0.6349,2263.2810,2265.5260,stopped
+191,appear,box in the way,0.25,0.6,1,-2.6000,-3.2000,1.5708,-2.6000,-0.6303,2272.4610,2274.9090,stopped
+192,appear,box in the way,0.3,0.15,1,-2.6000,-3.2000,1.5708,-2.6000,-0.5958,2291.7730,2293.7450,stopped
+193,appear,box in the way,0.3,0.3,1,-2.6000,-3.2000,1.5708,-2.6000,-0.5976,2303.7750,2305.8830,stopped
+194,appear,box in the way,0.3,0.45,1,-2.6000,-3.2000,1.5708,-2.6000,-0.5975,2313.7710,2316.0490,stopped
+195,appear,box in the way,0.3,0.6,1,-2.6000,-3.2000,1.5708,-2.6000,-0.5947,2322.8830,2325.3310,stopped
+196,appear,box in the way,0.33,0.15,1,-2.6000,-3.2000,1.5708,-2.6000,-0.5679,2342.0250,2344.1340,stopped
+197,appear,box in the way,0.33,0.3,1,-2.6000,-3.2000,1.5708,-2.6000,-0.5694,2354.0950,2356.1690,stopped
+198,appear,box in the way,0.33,0.45,1,-2.6000,-3.2000,1.5708,-2.6000,-0.5549,2364.1250,2366.4370,stopped
+199,appear,box in the way,0.33,0.6,1,-2.6000,-3.2000,1.5708,-2.6000,-0.5695,2373.2700,2375.6850,stopped
+200,appear,box in the way,0.45,0.15,1,-2.6000,-3.2000,1.5708,-2.6000,-0.4497,2392.4130,2395.2370,stopped
+201,appear,box in the way,0.45,0.3,1,-2.6000,-3.2000,1.5708,-2.6000,-0.4455,2405.3330,2408.0210,stopped
+202,appear,box in the way,0.45,0.45,1,-2.6000,-3.2000,1.5708,-2.6000,-0.4358,2416.0090,2418.3560,stopped
+203,appear,box in the way,0.45,0.6,1,-2.6000,-3.2000,1.5708,-2.6000,-0.4465,2425.2230,2427.6370,stopped
+204,appear,box in the way,0.6,0.15,1,-2.6000,-3.2000,1.5708,-2.6000,-0.2975,2444.3640,2448.2040,stopped
+205,appear,box in the way,0.6,0.3,1,-2.6000,-3.2000,1.5708,-2.6000,-0.2970,2458.3730,2462.1470,stopped
+206,appear,box in the way,0.6,0.45,1,-2.6000,-3.2000,1.5708,-2.6000,-0.2921,2470.0340,2473.3340,stopped
+207,appear,box in the way,0.6,0.6,1,-2.6000,-3.2000,1.5708,-2.6000,-0.2953,2480.1670,2483.0250,stopped
+208,appear,box in the way,0.1,0.15,2,-2.6000,-3.2000,1.5708,-2.6000,-0.7961,2499.8170,2501.8250,stopped
+209,appear,box in the way,0.1,0.3,2,-2.6000,-3.2000,1.5708,-2.6000,-0.7979,2511.9570,2514.0650,stopped
+210,appear,box in the way,0.1,0.45,2,-2.6000,-3.2000,1.5708,-2.6000,-0.7966,2521.9190,2523.8910,stopped
+211,appear,box in the way,0.1,0.6,2,-2.6000,-3.2000,1.5708,-2.6000,-0.7851,2530.7920,2532.7300,stopped
+212,appear,box in the way,0.15,0.15,2,-2.6000,-3.2000,1.5708,-2.6000,-0.7460,2549.5270,2551.5330,stopped
+213,appear,box in the way,0.15,0.3,2,-2.6000,-3.2000,1.5708,-2.6000,-0.7425,2561.6300,2563.8070,stopped
+214,appear,box in the way,0.15,0.45,2,-2.6000,-3.2000,1.5708,-2.6000,-0.7362,2571.7960,2574.0420,stopped
+215,appear,box in the way,0.15,0.6,2,-2.6000,-3.2000,1.5708,-2.6000,-0.7297,2580.9760,2583.0170,stopped
+216,appear,box in the way,0.2,0.15,2,-2.6000,-3.2000,1.5708,-2.6000,-0.6961,2599.8130,2601.8530,stopped
+217,appear,box in the way,0.2,0.3,2,-2.6000,-3.2000,1.5708,-2.6000,-0.6973,2611.9510,2614.0930,stopped
+218,appear,box in the way,0.2,0.45,2,-2.6000,-3.2000,1.5708,-2.6000,-0.6867,2622.0150,2624.3270,stopped
+219,appear,box in the way,0.2,0.6,2,-2.6000,-3.2000,1.5708,-2.6000,-0.6947,2631.2620,2633.4390,stopped
+220,appear,box in the way,0.25,0.15,2,-2.6000,-3.2000,1.5708,-2.6000,-0.6491,2650.2340,2652.2410,stopped
+221,appear,box in the way,0.25,0.3,2,-2.6000,-3.2000,1.5708,-2.6000,-0.6428,2662.4070,2664.5840,stopped
+222,appear,box in the way,0.25,0.45,2,-2.6000,-3.2000,1.5708,-2.6000,-0.6403,2672.5380,2674.8170,stopped
+223,appear,box in the way,0.25,0.6,2,-2.6000,-3.2000,1.5708,-2.6000,-0.6399,2681.7870,2684.2000,stopped
+224,appear,box in the way,0.3,0.15,2,-2.6000,-3.2000,1.5708,-2.6000,-0.5978,2700.9630,2702.9340,stopped
+225,appear,box in the way,0.3,0.3,2,-2.6000,-3.2000,1.5708,-2.6000,-0.5961,2713.0670,2715.2090,stopped
+226,appear,box in the way,0.3,0.45,2,-2.6000,-3.2000,1.5708,-2.6000,-0.5853,2723.2320,2725.5120,stopped
+227,appear,box in the way,0.3,0.6,2,-2.6000,-3.2000,1.5708,-2.6000,-0.5887,2732.4460,2734.8610,stopped
+228,appear,box in the way,0.33,0.15,2,-2.6000,-3.2000,1.5708,-2.6000,-0.5697,2751.5890,2753.6630,stopped
+229,appear,box in the way,0.33,0.3,2,-2.6000,-3.2000,1.5708,-2.6000,-0.5622,2763.7600,2765.8350,stopped
+230,appear,box in the way,0.33,0.45,2,-2.6000,-3.2000,1.5708,-2.6000,-0.5657,2773.8240,2776.1380,stopped
+231,appear,box in the way,0.33,0.6,2,-2.6000,-3.2000,1.5708,-2.6000,-0.5569,2783.0050,2785.4870,stopped
+232,appear,box in the way,0.45,0.15,2,-2.6000,-3.2000,1.5708,-2.6000,-0.4482,2802.2150,2805.1740,stopped
+233,appear,box in the way,0.45,0.3,2,-2.6000,-3.2000,1.5708,-2.6000,-0.4437,2815.2710,2818.0250,stopped
+234,appear,box in the way,0.45,0.45,2,-2.6000,-3.2000,1.5708,-2.6000,-0.4497,2825.8780,2828.3280,stopped
+235,appear,box in the way,0.45,0.6,2,-2.6000,-3.2000,1.5708,-2.6000,-0.4345,2835.1610,2837.5750,stopped
+236,appear,box in the way,0.6,0.15,2,-2.6000,-3.2000,1.5708,-2.6000,-0.2973,2854.2360,2858.1450,stopped
+237,appear,box in the way,0.6,0.3,2,-2.6000,-3.2000,1.5708,-2.6000,-0.2955,2868.1410,2871.8140,stopped
+238,appear,box in the way,0.6,0.45,2,-2.6000,-3.2000,1.5708,-2.6000,-0.2871,2879.7690,2883.2380,stopped
+239,appear,box in the way,0.6,0.6,2,-2.6000,-3.2000,1.5708,-2.6000,-0.2929,2890.1380,2893.0630,stopped
+240,appear,box in the way,0.1,0.15,3,-2.6000,-3.2000,1.5708,-2.6000,-0.7951,2909.8250,2911.8640,stopped
+241,appear,box in the way,0.1,0.3,3,-2.6000,-3.2000,1.5708,-2.6000,-0.7931,2921.9970,2924.1050,stopped
+242,appear,box in the way,0.1,0.45,3,-2.6000,-3.2000,1.5708,-2.6000,-0.7997,2932.0940,2934.1350,stopped
+243,appear,box in the way,0.1,0.6,3,-2.6000,-3.2000,1.5708,-2.6000,-0.7857,2941.0700,2942.9750,stopped
+244,appear,box in the way,0.15,0.15,3,-2.6000,-3.2000,1.5708,-2.6000,-0.7485,2959.7710,2961.7430,stopped
+245,appear,box in the way,0.15,0.3,3,-2.6000,-3.2000,1.5708,-2.6000,-0.7401,2971.8080,2974.0180,stopped
+246,appear,box in the way,0.15,0.45,3,-2.6000,-3.2000,1.5708,-2.6000,-0.7407,2981.9390,2984.1150,stopped
+247,appear,box in the way,0.15,0.6,3,-2.6000,-3.2000,1.5708,-2.6000,-0.7435,2991.0860,2993.1240,stopped
+248,appear,box in the way,0.2,0.15,3,-2.6000,-3.2000,1.5708,-2.6000,-0.6988,3009.8860,3011.8600,stopped
+249,appear,box in the way,0.2,0.3,3,-2.6000,-3.2000,1.5708,-2.6000,-0.6961,3021.9560,3024.0680,stopped
+250,appear,box in the way,0.2,0.45,3,-2.6000,-3.2000,1.5708,-2.6000,-0.6885,3031.9870,3034.2320,stopped
+251,appear,box in the way,0.2,0.6,3,-2.6000,-3.2000,1.5708,-2.6000,-0.6875,3041.1320,3043.2750,stopped
+252,appear,box in the way,0.25,0.15,3,-2.6000,-3.2000,1.5708,-2.6000,-0.6476,3060.0030,3062.0430,stopped
+253,appear,box in the way,0.25,0.3,3,-2.6000,-3.2000,1.5708,-2.6000,-0.6467,3072.1070,3074.2830,stopped
+254,appear,box in the way,0.25,0.45,3,-2.6000,-3.2000,1.5708,-2.6000,-0.6475,3082.2070,3084.5520,stopped
+255,appear,box in the way,0.25,0.6,3,-2.6000,-3.2000,1.5708,-2.6000,-0.6363,3091.4530,3093.8670,stopped
+256,appear,box in the way,0.3,0.15,3,-2.6000,-3.2000,1.5708,-2.6000,-0.5975,3110.5950,3112.5690,stopped
+257,appear,box in the way,0.3,0.3,3,-2.6000,-3.2000,1.5708,-2.6000,-0.5964,3122.6990,3124.7730,stopped
+258,appear,box in the way,0.3,0.45,3,-2.6000,-3.2000,1.5708,-2.6000,-0.5880,3132.6940,3134.9740,stopped
+259,appear,box in the way,0.3,0.6,3,-2.6000,-3.2000,1.5708,-2.6000,-0.5881,3141.8070,3144.2890,stopped
+260,appear,box in the way,0.33,0.15,3,-2.6000,-3.2000,1.5708,-2.6000,-0.5672,3161.0170,3163.0910,stopped
+261,appear,box in the way,0.33,0.3,3,-2.6000,-3.2000,1.5708,-2.6000,-0.5697,3173.1880,3175.2640,stopped
+262,appear,box in the way,0.33,0.45,3,-2.6000,-3.2000,1.5708,-2.6000,-0.5621,3183.1850,3185.3950,stopped
+263,appear,box in the way,0.33,0.6,3,-2.6000,-3.2000,1.5708,-2.6000,-0.5617,3192.1950,3194.5430,stopped
+264,appear,box in the way,0.45,0.15,3,-2.6000,-3.2000,1.5708,-2.6000,-0.4478,3211.2690,3214.1260,stopped
+265,appear,box in the way,0.45,0.3,3,-2.6000,-3.2000,1.5708,-2.6000,-0.4479,3224.2910,3227.0450,stopped
+266,appear,box in the way,0.45,0.45,3,-2.6000,-3.2000,1.5708,-2.6000,-0.4448,3235.0000,3237.3470,stopped
+267,appear,box in the way,0.45,0.6,3,-2.6000,-3.2000,1.5708,-2.6000,-0.4447,3244.2480,3246.6630,stopped
+268,appear,box in the way,0.6,0.15,3,-2.6000,-3.2000,1.5708,-2.6000,-0.2990,3263.4240,3267.3360,stopped
+269,appear,box in the way,0.6,0.3,3,-2.6000,-3.2000,1.5708,-2.6000,-0.2961,3277.4320,3281.1390,stopped
+270,appear,box in the way,0.6,0.45,3,-2.6000,-3.2000,1.5708,-2.6000,-0.2984,3288.9930,3292.4270,stopped
+271,appear,box in the way,0.6,0.6,3,-2.6000,-3.2000,1.5708,-2.6000,-0.2821,3299.3620,3302.3550,stopped
+272,appear,box in the way,0.1,0.15,4,-2.6000,-3.2000,1.5708,-2.6000,-0.7988,3319.1170,3321.0900,stopped
+273,appear,box in the way,0.1,0.3,4,-2.6000,-3.2000,1.5708,-2.6000,-0.7988,3331.1530,3333.3290,stopped
+274,appear,box in the way,0.1,0.45,4,-2.6000,-3.2000,1.5708,-2.6000,-0.7849,3341.3530,3343.3590,stopped
+275,appear,box in the way,0.1,0.6,4,-2.6000,-3.2000,1.5708,-2.6000,-0.7833,3350.2600,3352.1690,stopped
+276,appear,box in the way,0.15,0.15,4,-2.6000,-3.2000,1.5708,-2.6000,-0.7499,3368.9610,3370.9340,stopped
+277,appear,box in the way,0.15,0.3,4,-2.6000,-3.2000,1.5708,-2.6000,-0.7488,3380.9970,3383.1080,stopped
+278,appear,box in the way,0.15,0.45,4,-2.6000,-3.2000,1.5708,-2.6000,-0.7448,3391.1280,3393.3060,stopped
+279,appear,box in the way,0.15,0.6,4,-2.6000,-3.2000,1.5708,-2.6000,-0.7483,3400.1730,3402.2140,stopped
+280,appear,box in the way,0.2,0.15,4,-2.6000,-3.2000,1.5708,-2.6000,-0.6975,3419.0430,3421.0170,stopped
+281,appear,box in the way,0.2,0.3,4,-2.6000,-3.2000,1.5708,-2.6000,-0.6925,3431.0780,3433.1870,stopped
+282,appear,box in the way,0.2,0.45,4,-2.6000,-3.2000,1.5708,-2.6000,-0.6997,3441.0410,3443.3190,stopped
+283,appear,box in the way,0.2,0.6,4,-2.6000,-3.2000,1.5708,-2.6000,-0.6809,3450.2880,3452.4990,stopped
+284,appear,box in the way,0.25,0.15,4,-2.6000,-3.2000,1.5708,-2.6000,-0.6484,3469.1930,3471.1310,stopped
+285,appear,box in the way,0.25,0.3,4,-2.6000,-3.2000,1.5708,-2.6000,-0.6455,3481.2280,3483.3700,stopped
+286,appear,box in the way,0.25,0.45,4,-2.6000,-3.2000,1.5708,-2.6000,-0.6434,3491.2960,3493.5040,stopped
+287,appear,box in the way,0.25,0.6,4,-2.6000,-3.2000,1.5708,-2.6000,-0.6453,3500.4060,3502.6820,stopped
+288,appear,box in the way,0.3,0.15,4,-2.6000,-3.2000,1.5708,-2.6000,-0.5957,3519.4450,3521.4170,stopped
+289,appear,box in the way,0.3,0.3,4,-2.6000,-3.2000,1.5708,-2.6000,-0.5988,3531.6160,3533.7920,stopped
+290,appear,box in the way,0.3,0.45,4,-2.6000,-3.2000,1.5708,-2.6000,-0.5849,3541.7480,3544.0610,stopped
+291,appear,box in the way,0.3,0.6,4,-2.6000,-3.2000,1.5708,-2.6000,-0.5953,3550.8980,3553.2770,stopped
+292,appear,box in the way,0.33,0.15,4,-2.6000,-3.2000,1.5708,-2.6000,-0.5663,3570.0370,3572.0430,stopped
+293,appear,box in the way,0.33,0.3,4,-2.6000,-3.2000,1.5708,-2.6000,-0.5625,3582.1750,3584.2490,stopped
+294,appear,box in the way,0.33,0.45,4,-2.6000,-3.2000,1.5708,-2.6000,-0.5616,3592.2380,3594.5180,stopped
+295,appear,box in the way,0.33,0.6,4,-2.6000,-3.2000,1.5708,-2.6000,-0.5641,3601.4530,3603.8680,stopped
+296,appear,box in the way,0.45,0.15,4,-2.6000,-3.2000,1.5708,-2.6000,-0.4466,3620.5950,3623.4510,stopped
+297,appear,box in the way,0.45,0.3,4,-2.6000,-3.2000,1.5708,-2.6000,-0.4422,3633.6170,3636.3370,stopped
+298,appear,box in the way,0.45,0.45,4,-2.6000,-3.2000,1.5708,-2.6000,-0.4371,3644.2920,3646.7080,stopped
+299,appear,box in the way,0.45,0.6,4,-2.6000,-3.2000,1.5708,-2.6000,-0.4303,3653.6430,3656.0920,stopped
+300,appear,box in the way,0.6,0.15,4,-2.6000,-3.2000,1.5708,-2.6000,-0.2964,3672.7850,3676.6270,stopped
+301,appear,box in the way,0.6,0.3,4,-2.6000,-3.2000,1.5708,-2.6000,-0.2907,3686.7590,3690.5330,stopped
+302,appear,box in the way,0.6,0.45,4,-2.6000,-3.2000,1.5708,-2.6000,-0.2853,3698.4890,3702.0600,stopped
+303,appear,box in the way,0.6,0.6,4,-2.6000,-3.2000,1.5708,-2.6000,-0.2815,3708.8580,3711.8180,stopped

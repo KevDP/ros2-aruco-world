@@ -1,0 +1,17 @@
+guard:
+  front: 0.18
+  rear: 0.18
+  half_width: 0.15750000000000003
+  stop_distance: 0.3
+  slow_distance: 0.8
+  slow_speed: 0.15
+  side_margin: 0.05
+  min_points: 2
+  resume_margin: 0.05
+  resume_delay: 1.0
+  scan_timeout: 0.5
+  rate: 20.0
+obstacle_size:
+- 0.3
+- 0.2
+- 0.6
