@@ -29,13 +29,13 @@ unless a column says otherwise.
 | 5-6 m | 327 | 30% | 77% |
 | 6-8 m | 562 | 15% | 41% |
 
-## Read rate within 3 m, by viewing angle
+## Read rate within 4 m, by viewing angle
 
 | Viewing angle | Markers | whole cells | cell centres |
 |---|---:|---:|---:|
-| 0-45 deg | 192 | 98% | 100% |
-| 45-60 deg | 69 | 65% | 99% |
-| 60-75 deg | 68 | 38% | 76% |
+| 0-45 deg | 433 | 81% | 99% |
+| 45-60 deg | 143 | 42% | 93% |
+| 60-75 deg | 141 | 19% | 45% |
 
 ## Error of the measured pose
 

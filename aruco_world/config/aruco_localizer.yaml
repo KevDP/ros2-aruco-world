@@ -4,9 +4,10 @@ aruco_localizer:
   ros__parameters:
     map_frame: map
     base_frame: base_footprint
-    # Markers farther than this (metres) give no fix. Beyond it, a 15 cm marker covers too few
-    # pixels of this camera (640 across 60 degrees) for a reliable orientation seen nearly head-on.
-    max_distance: 3.0
+    # Markers farther than this (metres) give no fix. Up to it, the detector reads nearly every
+    # marker in view. Past it, it misses more of them and what it measures drifts further
+    # (experiments/results/perception has the numbers).
+    max_distance: 4.0
     # Standard deviations per metre of distance: of the measured distance, and of the marker's
     # measured orientation (radians), which spreads the fix across the line of sight. Wide enough
     # to also cover the detector's small distance bias.
