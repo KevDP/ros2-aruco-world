@@ -6,8 +6,8 @@ and viewing angle change, and what the robot can do with it.
 A small differential robot with a camera, a 2D lidar and an IMU moves around a room with ArUco
 markers in different places and poses. On top of it run a live marker detector, a localizer that
 works out the robot's place in the map from each marker it sees, two `robot_localization` filters
-that fuse those fixes with drifting wheel odometry and a gyro, and a guard that stops the robot
-before it drives into whatever the lidar sees.
+that fuse those fixes with drifting wheel odometry and a gyro calibrated at start-up, and a guard
+that stops the robot before it drives into whatever the lidar sees.
 
 ROS 2 Jazzy, Gazebo Harmonic, Ubuntu 24.04 (tested under WSL2 on Windows 11).
 
@@ -102,19 +102,26 @@ drifting copy of it. Each step of motion gets a random, zero-mean error sized by
 travelled and the angle turned, and the errors build up as a random walk. The robot's nodes only
 ever see that copy, on `/wheel/odometry`.
 
+The simulated gyro is a low-cost one, and every start it comes up reading a slightly different
+rate when the robot is still. Integrated over a few minutes, that offset alone turns the heading by
+degrees. `gyro_calibration` waits for the robot to stand still for a few seconds after start-up,
+takes the gyro's average then as its bias, and republishes the IMU without it on
+`/imu/calibrated`. The TurtleBot3's board calibrates its gyro the same way at power-up.
+
 Two `robot_localization` filters then estimate the robot's pose, following the split REP 105
 describes:
 
 - **`ekf_local`** combines the wheel odometry (forward speed and turn rate, with sideways speed held
-  at zero) and the gyro's turn rate. Its pose in `odom` moves smoothly and never jumps, at the cost
-  of drifting. It publishes `odom -> base_footprint` and `/odometry/local`.
+  at zero) and the calibrated gyro's turn rate. Its pose in `odom` moves smoothly and never jumps,
+  at the cost of drifting. It publishes `odom -> base_footprint` and `/odometry/local`.
 - **`ekf_global`** takes the same inputs plus the marker fixes. Its pose in `map` does not drift,
   but it moves when a fix corrects it. It publishes `map -> odom` and `/odometry/global`.
 
 A fix reaches the filter after a camera frame and a detection, later than the image it came from.
 The global filter rewinds to the image's time to apply it. Fixes that disagree too much with the
 odometry and the gyro are rejected. Both filters are configured in `aruco_world/config/ekf.yaml`,
-and the drift in `aruco_world/config/noisy_odometry.yaml`.
+the drift in `aruco_world/config/noisy_odometry.yaml` and the calibration in
+`aruco_world/config/gyro_calibration.yaml`.
 
 ## The lidar and the guard
 
@@ -156,8 +163,9 @@ Gazebo (spawns the robot) -> ros_gz_bridge -> /camera/image, /camera/camera_info
                                                      -> /aruco/robot_pose_markers, /aruco/marker_map -> RViz
 
 /sim/wheel_odometry -> noisy_odometry -> /wheel/odometry
-/wheel/odometry + /imu                     -> ekf_local  -> odom -> base_footprint, /odometry/local
-/wheel/odometry + /imu + /aruco/robot_pose -> ekf_global -> map -> odom, /odometry/global -> RViz
+/imu -> gyro_calibration -> /imu/calibrated
+/wheel/odometry + /imu/calibrated                     -> ekf_local  -> odom -> base_footprint, /odometry/local
+/wheel/odometry + /imu/calibrated + /aruco/robot_pose -> ekf_global -> map -> odom, /odometry/global -> RViz
 
 teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridge -> Gazebo
                                         |
@@ -172,6 +180,7 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
 | `aruco_interfaces` | ament_cmake | the `MarkerDetection` and `MarkerDetectionArray` messages |
 | `aruco_localization` | ament_python | the localizer node, its pose and covariance core without ROS, and tests |
 | `noisy_odometry` | ament_python | the node that makes the wheel odometry drift, its model without ROS, and tests |
+| `gyro_calibration` | ament_python | the node that takes the gyro's start-up bias out, its estimator without ROS, and tests |
 | `scan_guard` | ament_python | the lidar guard node, its decision core without ROS, and tests |
 
 ## Key technical decisions
@@ -251,6 +260,11 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
   more.
 - The simulated IMU's own orientation is switched off and the filters use only the gyro's rate.
   Gazebo's orientation would be the true heading, which a real low-cost IMU does not give.
+- The gyro's bias is taken out before the filters see it. Neither filter estimates a sensor's bias,
+  and the covariance a gyro reports describes its noise only. While the robot turns, the filters
+  weigh the gyro well above the wheels, and an uncorrected bias would go straight into the
+  heading. An average over a few seconds at rest takes the bias out, at the cost of one wait at
+  start-up.
 - The global filter keeps a second of history and applies each fix at its image's stamp, however
   late the fix arrives.
 
@@ -302,6 +316,9 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
   away may not do (rays are 1.3 cm apart at 1 m).
 - With no marker in range, the global estimate relies on odometry and the gyro alone and drifts
   until the next fix.
+- The gyro's bias is measured once, and the robot has to stand still for a few seconds after
+  start-up. A real gyro's bias also wanders with temperature and time, which this calibration does
+  not follow.
 - A fix's covariance ignores that its sideways spread and its heading error come from the same
   orientation error, and it overstates how much a single marker tells the filter.
 - The detector's distances come out slightly long, more on far and oblique markers. The
@@ -404,15 +421,16 @@ Lint and test without ROS (one pytest run per package, so each finds its own set
 ```bash
 pip install ruff pytest numpy opencv-python-headless
 ruff check .
-for p in aruco_detector aruco_localization noisy_odometry scan_guard; do pytest -q $p/test; done
+for p in aruco_detector aruco_localization noisy_odometry scan_guard gyro_calibration; do pytest -q $p/test; done
 ```
 
 ## Repository structure
 
 ```
 aruco_world/           simulation package
-  config/              Gazebo bridge, guard zones, localizer limits, filters, odometry drift;
-                       detector parameters, marker map and robot start (generated)
+  config/              Gazebo bridge, guard zones, localizer limits, filters, odometry drift,
+                       gyro calibration; detector parameters, marker map and robot start
+                       (generated)
   launch/              world.launch.py
   models/              aruco_<id> (generated); camera_bot, the robot's SDF, for reference
   rviz/                aruco_world.rviz
@@ -429,6 +447,9 @@ aruco_localization/    localization package
 noisy_odometry/        odometry drift package
   noisy_odometry/      drift.py (no ROS), node.py
   test/                drift tests on synthetic motion
+gyro_calibration/      gyro bias package
+  gyro_calibration/    bias.py (no ROS), node.py
+  test/                bias tests on synthetic gyro readings
 scan_guard/            lidar guard package
   scan_guard/          guard.py (no ROS), node.py
   test/                guard tests on synthetic scans

@@ -1,0 +1,8 @@
+# How gyro_calibration measures the gyro's bias after start-up, with the robot standing still.
+gyro_calibration:
+  ros__parameters:
+    # Seconds of readings to average. At 100 Hz and the simulated gyro's noise, the bias comes out
+    # within about 0.00004 rad/s, or 0.14 degrees per minute.
+    duration: 5.0
+    # rad/s on any axis past which the robot counts as moving and the average starts over.
+    max_rate: 0.02

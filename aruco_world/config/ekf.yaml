@@ -25,8 +25,8 @@ ekf_local:
                    false, false, true,
                    false, false, false]
 
-    # The gyro's turn rate only.
-    imu0: /imu
+    # The gyro's turn rate only, with its start-up bias taken out by gyro_calibration.
+    imu0: /imu/calibrated
     imu0_config: [false, false, false,
                   false, false, false,
                   false, false, false,
@@ -50,7 +50,7 @@ ekf_global:
                    false, false, true,
                    false, false, false]
 
-    imu0: /imu
+    imu0: /imu/calibrated
     imu0_config: [false, false, false,
                   false, false, false,
                   false, false, false,

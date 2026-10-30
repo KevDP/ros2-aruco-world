@@ -168,6 +168,17 @@ def generate_launch_description() -> LaunchDescription:
         output="screen",
     )
 
+    # Measures the gyro's bias while the robot stands still after start-up and passes the IMU on
+    # without it. The filters read the corrected gyro.
+    gyro_calibration = Node(
+        package="gyro_calibration",
+        executable="gyro_calibration",
+        name="gyro_calibration",
+        parameters=[os.path.join(share, "config", "gyro_calibration.yaml")],
+        remappings=[("imu", "/imu"), ("imu_calibrated", "/imu/calibrated")],
+        output="screen",
+    )
+
     # The two filters share one file. The global one starts where the robot was spawned, the local
     # one at its own origin, like the odometry. robot_localization's state is x, y, z, roll, pitch,
     # yaw, then six velocities and three linear accelerations, all zero at rest.
@@ -262,6 +273,7 @@ def generate_launch_description() -> LaunchDescription:
             spawn,
             bridge,
             noisy_odometry,
+            gyro_calibration,
             ekf_local,
             ekf_global,
             detector,
