@@ -1,336 +1,211 @@
 # ros2-aruco-world
 
-A ROS 2 and Gazebo setup for studying what a robot's camera gets from fiducial markers as distance
-and viewing angle change, and what the robot can do with it.
+[![ci](https://github.com/KevDP/ros2-aruco-world/actions/workflows/ci.yml/badge.svg)](https://github.com/KevDP/ros2-aruco-world/actions/workflows/ci.yml)
 
-A small differential robot with a camera, a 2D lidar and an IMU moves around a room with ArUco
-markers in different places and poses. On top of it run a live marker detector, a localizer that
-works out the robot's place in the map from each marker it sees, two `robot_localization` filters
-that fuse those fixes with drifting wheel odometry and a gyro calibrated at start-up, and a guard
-that stops the robot before it drives into whatever the lidar sees.
+A mobile robot in a simulated room full of ArUco markers, built layer by layer in ROS 2. It reads
+the markers, stops before it runs into anything, works out where it is and keeps track of it
+between one marker and the next.
 
-ROS 2 Jazzy, Gazebo Harmonic, Ubuntu 24.04 (tested under WSL2 on Windows 11).
+<p align="center">
+  <img src="experiments/results/camera/camera-views.png" width="48%" alt="The robot's camera, with every marker it reads outlined and its distance">
+  <img src="experiments/results/fusion/route-top.png" width="45%" alt="One run from above: the true path, the wheels alone and the fused estimate">
+</p>
+
+I studied Robotics, and my last robotics project was in ROS 1: a robot that drove to a goal while
+avoiding obstacles with a lidar, reading ArUco markers along the way. Since then my work has moved
+toward ML. This repository brings the two together, and it is the code behind my blog series
+[Mobile robotics in simulation with ROS 2](https://kevdelgado.com/blog/robotica-movil-ros2-parte-1).
+
+Each part of the series asks one question about the robot and answers it with an experiment that
+compares what the robot believes with where it really is.
+
+| Part | Topic | The question |
+|---|---|---|
+| [1](https://kevdelgado.com/blog/robotica-movil-ros2-parte-1) | The lab | How do I know that what the robot believes is true? |
+| [2](https://kevdelgado.com/blog/robotica-movil-ros2-parte-2) | Perception | How far away can the robot read a marker, and how well does it know where that marker is? |
+| [3](https://kevdelgado.com/blog/robotica-movil-ros2-parte-3) | Safety | How far ahead does the robot need to see something to stop before touching it, whatever its speed? |
+| [4](https://kevdelgado.com/blog/robotica-movil-ros2-parte-4) | Spatial awareness | How well does the robot know where it is with a single marker in view? |
+| [5](https://kevdelgado.com/blog/robotica-movil-ros2-parte-5) | Fusion | How well does the robot know where it is along a route, whether it sees markers or not? |
+| 6 | Learning | Coming soon. |
+
+ROS 2 Jazzy, Gazebo Harmonic and Ubuntu 24.04, tested under WSL2 on Windows 11.
 
 ## The problem
 
-A fiducial marker is easy to read straight on and close up. A robot rarely gets that view. The
-marker is far away, turned, on the floor or above the camera. Testing those cases on real hardware
-is slow. A simulated camera shows the same effects in seconds and makes every case repeatable.
+A fiducial marker is easy to read close up and straight on, and a robot rarely gets that view. The
+marker is far away, turned, on the floor or above the camera, and between one marker and the next
+the robot has nothing to look at. Testing those cases on real hardware is slow. A simulated camera
+shows the same effects in seconds, every case can be repeated, and Gazebo computes the robot's true
+pose at every instant, which is what every estimate here is checked against.
 
-## The world
+## Results
 
-Ten markers (DICT_4X4_50, 15 cm) cover a range of cases, from easy to hard:
+Each experiment runs a fixed scenario on a fresh simulation and compares the result with the true
+pose. The full tables are in each experiment's `summary.md`, under `experiments/results/`.
 
-- **near and head-on**, on a post in front of the robot
-- **turned away**, on posts turned at increasing angles
-- **flat on the floor**, ahead of the robot
-- **far**, on the far wall
-- **above the camera**, mounted high on the walls and tilted down
-- **out of the starting view**, on the side walls, the back wall and the side of a box, where the
-  robot has to turn to find them
-
-Every marker's position and facing is set in `aruco_world/scripts/build_world.py`. Each time the
-script regenerates the world, it also prints how each marker looks from the robot's starting pose.
-
-## The robot and its frames
-
-The robot is described once, in `aruco_world/urdf/camera_bot.urdf.xacro`. `robot_state_publisher`
-turns that description into TF, and Gazebo builds the robot from it too.
-
-```
-map -> odom -> base_footprint -> base_link -> camera_link -> camera_link_optical
-                                           -> lidar_link
-                                           -> imu_link
-                                           -> left_wheel, right_wheel
-```
-
-`map` is Gazebo's world frame, the one the markers are placed in. The local filter (wheel odometry
-and gyro) publishes `odom -> base_footprint`, which is smooth but drifts. The global filter adds the
-marker fixes and publishes `map -> odom`, the drift those fixes have found. The wheel frames follow
-the joint states Gazebo publishes and every other link is fixed. Images and detections are stamped
-in `camera_link_optical`, scans in `lidar_link` and IMU readings in `imu_link`. TF can then place
-any of them relative to the robot or in the map.
-
-Gazebo also publishes where the robot actually is on `/ground_truth` (`nav_msgs/Odometry`), for
-checking estimates. That topic never reaches `/tf`, and none of the robot's nodes subscribe to
-it.
-
-## The detector
-
-For every camera frame, `aruco_detector` publishes:
-
-- `/aruco/image`: the camera frame annotated with every marker's outline, axes, id, distance and
-  viewing angle
-- `/aruco/detections` (`aruco_interfaces/MarkerDetectionArray`): id, pose, distance, viewing angle,
-  reprojection error and ambiguity of every marker, with the image's stamp and frame
-- `/aruco/markers` (`visualization_msgs/MarkerArray`): a panel and an id for each detected marker,
-  for RViz
-
-It subscribes to an image and its calibration and has no tie to the simulation. Remapping `image`
-and `camera_info` is enough to run it on any camera.
-
-## Where the markers put the robot
-
-For each detected marker whose place is known, `aruco_localization` works out where the robot must
-be for the camera to see the marker the way it does. It chains three transforms: the marker's pose
-in the map, the inverse of the marker's pose as the camera saw it, and the inverse of the camera's
-pose on the robot. The robot moves on the floor, and a fix keeps only x, y and heading.
-
-Each fix comes with a covariance that grows with distance, and not equally in every direction. The
-detector measures the distance to a marker well and its orientation less well. A small error in the
-orientation rotates the estimated camera position around the marker, and the fix spreads sideways by
-about the distance times the angle. Past a distance limit no fix is published at all. A marker that
-looks small allows two orientations that fit its corners almost equally well, and when the detector
-picks the wrong one the fix lands metres off. The localizer passes it on, and the global filter is
-the one that has to reject it.
-
-It publishes:
-
-- `/aruco/robot_pose` (`geometry_msgs/PoseWithCovarianceStamped`): one fix per marker in range,
-  stamped with its image's time, ready for a filter
-- `/aruco/robot_pose_markers` (`visualization_msgs/MarkerArray`): the fixes as arrows with 2-sigma
-  ellipses, for RViz
-- `/aruco/marker_map` (`visualization_msgs/MarkerArray`): each marker where the map puts it, latched
-
-The marker map is generated with the world, into `aruco_world/config/marker_map.yaml`. The distance
-limit and the spread live in `aruco_world/config/aruco_localizer.yaml`.
-
-## Fusing odometry, gyro and markers
-
-Gazebo's wheel odometry is close to perfect, and no real robot's is. `noisy_odometry` publishes a
-drifting copy of it. Each step of motion gets a random, zero-mean error sized by the distance
-travelled and the angle turned, and the errors build up as a random walk. The robot's nodes only
-ever see that copy, on `/wheel/odometry`.
-
-The simulated gyro is a low-cost one, and every start it comes up reading a slightly different
-rate when the robot is still. Integrated over a few minutes, that offset alone turns the heading by
-degrees. `gyro_calibration` waits for the robot to stand still for a few seconds after start-up,
-takes the gyro's average then as its bias, and republishes the IMU without it on
-`/imu/calibrated`. The TurtleBot3's board calibrates its gyro the same way at power-up.
-
-Two `robot_localization` filters then estimate the robot's pose, following the split REP 105
-describes:
-
-- **`ekf_local`** combines the wheel odometry (forward speed and turn rate, with sideways speed held
-  at zero) and the calibrated gyro's turn rate. Its pose in `odom` moves smoothly and never jumps,
-  at the cost of drifting. It publishes `odom -> base_footprint` and `/odometry/local`.
-- **`ekf_global`** takes the same inputs plus the marker fixes. Its pose in `map` does not drift,
-  but it moves when a fix corrects it. It publishes `map -> odom` and `/odometry/global`.
-
-A fix reaches the filter after a camera frame and a detection, later than the image it came from.
-The global filter rewinds to the image's time to apply it. Fixes that disagree too much with the
-odometry and the gyro are rejected. Both filters are configured in `aruco_world/config/ekf.yaml`,
-the drift in `aruco_world/config/noisy_odometry.yaml` and the calibration in
-`aruco_world/config/gyro_calibration.yaml`.
-
-## The lidar and the guard
-
-A 360-degree 2D lidar sits on a mast above the camera, where nothing on the robot blocks it. Its
-simulated specs come from the datasheets of two common low-cost time-of-flight units, taking the
-worse value where they differ: 500 rays per turn, 10 turns per second, a range of 0.05 to 12 m and
-about 1 cm of noise.
-
-`scan_guard` sits between whoever drives and the robot. It reads the driver's command on
-`/cmd_vel_teleop` and the scan on `/scan`, and it is the only node that publishes on `/cmd_vel`.
-
-- An obstacle in the **stop zone**, just past the robot's leading edge, stops the robot. The guard
-  keeps the command, and the robot goes on with it once the obstacle is gone.
-- An obstacle in the **slow zone**, further out, caps the speed.
-- Both zones match the robot's width plus a margin. Only the direction of travel is checked, and a
-  robot blocked ahead can still back away.
-- Without a recent scan, it sends zero velocity and drops the command. A sensor that went quiet
-  needs someone to look at it, and the robot waits for a new command.
-
-It also draws the zones on `/scan_guard/zones` for RViz, faint while clear and solid while
-something is in them.
+| Layer | Result | Experiment |
+|---|---|---|
+| The lab | Turning in place, the robot reads at least one marker from 97% of the free floor. With sphere-shaped wheel collisions, its odometry turns as much as the robot does. | `visibility`, `turning` |
+| Perception | Within 4 m and 45° of head-on, the detector reads 99% of the markers in view, none with a wrong id. Distances come out 1.8% to 3.4% long between 1 and 4 m. | `perception` |
+| Safety | In 144 approaches at 0.15 to 0.6 m/s, the robot never touched the obstacle, and at every speed it came to rest a median of about 27 cm from it. | `stopping` |
+| Localization | With a marker within 4 m, half the fixes land within about 8 cm of the robot and 9 in 10 within 17 cm, and 97.6% fall inside their own 95% ellipse. | `localization` |
+| Fusion | Over 30 runs of a 51 m route, the wheels alone end the third lap 41 cm off. With the gyro and the markers, the estimate ends it 9 cm off, and its error does not grow from one lap to the next. | `fusion` |
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    gz["Gazebo<br/>room and robot"]:::term
+    bridge["ros_gz_bridge"]:::route
+    det["aruco_detector"]:::proc
+    loc["aruco_localizer"]:::proc
+    odo["noisy_odometry"]:::proc
+    gyro["gyro_calibration"]:::proc
+    subgraph fuse [" "]
+        ekfl["ekf_local<br/>odom → base_footprint"]:::proc
+        ekfg["ekf_global<br/>map → odom"]:::proc
+    end
+    teleop["teleop"]:::act
+    guard["scan_guard"]:::route
+
+    gz <--> bridge
+    bridge -- "image" --> det
+    det -- "detections" --> loc
+    loc -- "fixes" --> ekfg
+    bridge -- "wheel odometry" --> odo
+    bridge -- "imu" --> gyro
+    odo --> fuse
+    gyro --> fuse
+    bridge -- "scan" --> guard
+    teleop -- "cmd_vel_teleop" --> guard
+    guard -- "cmd_vel" --> bridge
+
+    classDef term fill:#10b9811a,stroke:#10b981,color:#059669
+    classDef proc fill:#06b6d41a,stroke:#06b6d4,color:#0891b2
+    classDef route fill:#f59e0b1a,stroke:#f59e0b,color:#d97706
+    classDef act fill:#a78bfa1a,stroke:#a78bfa,color:#8b5cf6
+    style fuse fill:none,stroke:#94a3b8,stroke-dasharray:4 4
 ```
-camera_bot.urdf.xacro -> robot_state_publisher -> /robot_description, TF
-                                |
-                                v
-Gazebo (spawns the robot) -> ros_gz_bridge -> /camera/image, /camera/camera_info, /scan, /imu,
-                                              /sim/wheel_odometry, /joint_states, /clock,
-                                              /ground_truth (checking only)
-                                                     |
-                                                     v
-                                              aruco_detector -> /aruco/image, /aruco/markers -> RViz
-                                                     |
-                                                     v /aruco/detections
-                                              aruco_localizer (marker map, TF)
-                                                     -> /aruco/robot_pose
-                                                     -> /aruco/robot_pose_markers, /aruco/marker_map -> RViz
 
-/sim/wheel_odometry -> noisy_odometry -> /wheel/odometry
-/imu -> gyro_calibration -> /imu/calibrated
-/wheel/odometry + /imu/calibrated                     -> ekf_local  -> odom -> base_footprint, /odometry/local
-/wheel/odometry + /imu/calibrated + /aruco/robot_pose -> ekf_global -> map -> odom, /odometry/global -> RViz
+Gazebo simulates the room and the robot, and `ros_gz_bridge` passes its sensors to ROS 2 and the
+velocity commands back. The robot's nodes only see what a real robot would get from its sensors.
+Gazebo also publishes the true pose on `/ground_truth`, which never reaches TF and only the
+experiments read.
 
-teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridge -> Gazebo
-                                        |
-                                        v
-                                  /scan_guard/zones -> RViz
-```
-
-| Package | Build type | Holds |
+| Node | Reads | Publishes |
 |---|---|---|
-| `aruco_world` | ament_cmake | world generator, robot URDF, Gazebo bridge, filter settings, launch, RViz view |
-| `aruco_detector` | ament_python | the detection node, its core without ROS, and tests |
-| `aruco_interfaces` | ament_cmake | the `MarkerDetection` and `MarkerDetectionArray` messages |
-| `aruco_localization` | ament_python | the localizer node, its pose and covariance core without ROS, and tests |
-| `noisy_odometry` | ament_python | the node that makes the wheel odometry drift, its model without ROS, and tests |
-| `gyro_calibration` | ament_python | the node that takes the gyro's start-up bias out, its estimator without ROS, and tests |
-| `scan_guard` | ament_python | the lidar guard node, its decision core without ROS, and tests |
+| `aruco_detector` | `/camera/image`, `/camera/camera_info` | `/aruco/detections`, and `/aruco/image` and `/aruco/markers` for watching |
+| `aruco_localizer` | `/aruco/detections`, TF | `/aruco/robot_pose`, and `/aruco/robot_pose_markers` and `/aruco/marker_map` for RViz |
+| `noisy_odometry` | `/sim/wheel_odometry` | `/wheel/odometry` |
+| `gyro_calibration` | `/imu` | `/imu/calibrated` |
+| `ekf_local` | `/wheel/odometry`, `/imu/calibrated` | `/odometry/local`, TF `odom → base_footprint` |
+| `ekf_global` | the same, and `/aruco/robot_pose` | `/odometry/global`, TF `map → odom` |
+| `scan_guard` | `/cmd_vel_teleop`, `/scan` | `/cmd_vel`, and `/scan_guard/zones` for RViz |
 
-## Key technical decisions
+## How each layer works
 
-### World
+### The lab
 
-- The world is generated by `build_world.py`. Each marker is given by its position and the
-  direction it faces, and the script works out the rotation, keeping wall markers upright and away
-  from the Euler angle singularity. Moving a marker is a one-line change.
-- The same script writes the detector's parameters, the marker map and the robot's start pose.
-  Nothing that depends on a marker's place is copied by hand. The nodes have no defaults for those
-  parameters. A missing marker size stops the detector at start-up, before it can scale every
-  distance by the wrong factor, and a missing marker stops the localizer.
-- Each marker is its own model, a thin plain panel with the marker on a one-sided plane just in
-  front of it. A printed marker can only be read from the front. One readable from behind would put
-  the robot on the wrong side of it.
+<p align="center"><img src="docs/diagrams/lab.png" width="720" alt="What the robot knows, and what Gazebo knows"></p>
 
-### Robot
+- **The world.** `aruco_world/scripts/build_world.py` generates it. Each marker is given by its
+  position and the direction it faces, and the same script writes the detector's parameters, the
+  marker map and the robot's start pose. Ten markers (DICT_4X4_50, 15 cm) sit on posts, walls, the
+  side of a box and the floor.
+- **The robot.** A small differential robot with a camera, a 2D lidar and an IMU, described once in
+  `aruco_world/urdf/camera_bot.urdf.xacro`. Gazebo builds it from that file and
+  `robot_state_publisher` turns it into TF.
+- **The true pose.** Gazebo publishes where the robot really is on `/ground_truth`. None of the
+  robot's nodes subscribe to it.
 
-- One URDF drives both Gazebo and TF. The camera that renders the images and the frame that places
-  the detections cannot drift apart. Frame names and axes follow REP 105 and REP 103, and Gazebo
-  stamps camera images in the optical frame. The SDF in `models/camera_bot/` is kept for reference
-  only.
-- The wheels are drawn as cylinders and collide as spheres. A cylinder rests on
-  the edges of its rim, and turning on the inner edges shortens the wheel separation the odometry
-  assumes. A sphere touches the floor right under the wheel's centre. The cylinder stays available
-  as a launch argument for comparison.
-- Every speed and acceleration limit of the base is set in both directions. Gazebo's speed limiter
-  leaves any bound it is not given at infinity. With only the maximums set, the robot would stop
-  instantly and could turn right or reverse with no limit.
-- Simulated time is used only where a node reads the clock. `/clock` arrives at every physics step,
-  and the detector, which only copies each image's stamp, stays off it.
-- Gazebo's server and window run as separate processes. Losing the window never stops the
-  simulation or the camera.
+### Perception
 
-### Detection
+<p align="center"><img src="docs/diagrams/perception.png" width="460" alt="The marker detector"></p>
 
-- The detector is its own package and knows nothing about the simulation. The same node runs on a
-  real camera topic, and the simulation's launch only starts it and remaps its inputs.
-- Its core (`aruco_detector/aruco_detector/detection.py`) has no ROS dependency. It is tested on
-  synthetic images rendered from known poses and on markers cut out of simulated camera frames,
-  with OpenCV 4.6 (Ubuntu 24.04) locally and the current release in CI. Both ArUco APIs are
-  supported, chosen once at start-up.
-- Corners are refined to subpixel precision and the pose comes from SQPnP. Being globally optimal,
-  it returns the pose that best fits the four corners and never flips a marker to face away from
-  the camera.
-- The refinement looks 2 px around each corner. OpenCV's default window suits markers that look
-  big. On one a few metres away it also takes in the inner cells, whose edges drag every corner
-  toward the centre, and the marker then looks smaller, farther and turned. OpenCV 4.9 and later
-  scale the window to the cell, and Ubuntu 24.04 ships 4.6. `experiments/localization.py` measures
-  each window's fixes against the truth.
-- Bits are read from the middle of each cell of the marker's grid. Read whole, as OpenCV does by
-  default, a cell a few pixels wide takes in the blur of its neighbours, and one wrong bit drops a
-  `DICT_4X4_50` marker. Reading the middle keeps far markers readable at no cost in wrong ids.
-  Correcting a misread bit was left off, because codes in this dictionary differ in as few as 4
-  bits and a correction can turn one marker into another. `experiments/perception.py` measures
-  both readings.
-- Each detection also carries how alike the two poses a flat square allows fit its corners (the
-  ambiguity, solved with `SOLVEPNP_IPPE_SQUARE`) and how far the corners sit from where the chosen
-  pose puts them. The published pose still comes from SQPnP, and the two numbers only describe it.
-- The subscriptions use the sensor QoS profile, which drops late frames. Publishers keep the
-  default reliable profile that any viewer can subscribe to. Each RViz marker message starts by
-  deleting the previous frame's markers, which leaves no lifetime to guess.
+For every camera frame, `aruco_detector` publishes each marker's id, pose, distance, viewing angle,
+reprojection error and ambiguity on `/aruco/detections`. It has no tie to the simulation, and
+remapping `image` and `camera_info` is enough to run it on any camera.
 
-### Localization and fusion
+<p align="center"><img src="experiments/results/perception/accuracy.png" width="720" alt="Distance and viewing angle error of the detector, by distance"></p>
 
-- The localizer's core (`aruco_localization/aruco_localization/localization.py`) has no ROS
-  dependency and is tested on detections computed from known robot poses. Each fix is a planar pose
-  with its own covariance. A filter can weigh near and far markers without knowing where the fixes
-  came from.
-- The localizer publishes one fix per marker. Fusing them is the job of a filter that also knows
-  the odometry, and separate fixes show which marker said what.
-- There are two filters, as in REP 105. Anything that needs smooth motion, like a controller or the
-  guard's zones, reads `odom`, which never jumps. Anything that needs the robot's place in the room
-  reads `map`, which does not drift.
-- The odometry's drift is scaled to the motion, and publishing faster does not make it drift
-  more.
-- The simulated IMU's own orientation is switched off and the filters use only the gyro's rate.
-  Gazebo's orientation would be the true heading, which a real low-cost IMU does not give.
-- The gyro's bias is taken out before the filters see it. Neither filter estimates a sensor's bias,
-  and the covariance a gyro reports describes its noise only. While the robot turns, the filters
-  weigh the gyro well above the wheels, and an uncorrected bias would go straight into the
-  heading. An average over a few seconds at rest takes the bias out, at the cost of one wait at
-  start-up.
-- The global filter keeps a second of history and applies each fix at its image's stamp, however
-  late the fix arrives.
-- The global filter drops any fix more than 3 sigma from its estimate. One view sends many fixes a
-  second with nearly the same error, and with a looser gate a view that is off drags the estimate
-  along. Trusting every fix less, through a wider covariance or fewer fixes, helps as often but
-  can let a mirrored fix in, after which the filter rejects the good ones.
+### Safety
 
-### Guard
+<p align="center"><img src="docs/diagrams/safety.png" width="720" alt="The lidar brake"></p>
 
-- The base listens on `/cmd_vel` and drivers publish on a topic of their own, which leaves room for
-  anything that can veto a command to sit in between. A planner added later only needs its output
-  remapped, with no change to the guard or the bridge.
-- The guard holds the robot when it lacks data: no recent scan, or no TF yet for the lidar. Scan age
-  and the command timer use a clock that never runs backwards. A paused simulation still holds the
-  robot. A wall clock set back by NTP or by a virtual machine's time sync does not interrupt the
-  commands.
-- After a stop, the robot moves on with the same command once the way has been clear for a moment,
-  long enough for whoever stepped in front to step away. The way also has to be clear a little past
-  the stop zone, because lidar noise at the edge would otherwise release the robot. A slowdown lifts
-  as soon as the way clears.
-- The robot's outline comes from the URDF's properties, and only the zone sizes live in
-  `config/scan_guard.yaml`. The guard's core (`scan_guard/scan_guard/guard.py`) has no ROS
-  dependency and is tested on synthetic scans with obstacles at known positions.
+A 360° 2D lidar feeds `scan_guard`, the only node that publishes on `/cmd_vel`. Drivers publish on
+`/cmd_vel_teleop`, and the guard passes their commands on. An obstacle in the stop zone stops the
+robot, one in the slow zone caps its speed, and without a recent scan the robot holds still.
 
-### Experiments
+<p align="center"><img src="experiments/results/guard/guard-view.png" width="720" alt="What the lidar sees with a box in the slow zone and a post in the stop zone"></p>
 
-- Each experiment in `experiments/` runs a fixed scenario on a fresh simulation, compares the result
-  with Gazebo's true pose and keeps its raw numbers. Tables and figures are regenerated from them.
+### Localization
+
+<p align="center"><img src="docs/diagrams/localization.png" width="720" alt="The marker localizer"></p>
+
+For each detected marker whose place is known, `aruco_localizer` works out where the robot must
+be for the camera to see the marker that way. That is a fix, published on `/aruco/robot_pose` with a
+covariance that grows with distance, faster to the side than along the line of sight. Past 4 m no
+fix is published.
+
+<p align="center"><img src="experiments/results/localization/fixes-top.png" width="520" alt="The fixes of one frame from above, with their ellipses"></p>
+
+### Fusion
+
+<p align="center"><img src="docs/diagrams/fusion.png" width="720" alt="Two filters"></p>
+
+- **The wheels.** Gazebo's wheel odometry is close to perfect, and `noisy_odometry` publishes a copy
+  that drifts like a real robot's.
+- **The gyro.** A low-cost gyro starts with a small bias. `gyro_calibration` measures it while the
+  robot stands still for a few seconds after start-up and takes it out.
+- **Two filters.** Following REP 105, `ekf_local` combines the wheels and the gyro into a smooth
+  pose in `odom` that drifts. `ekf_global` adds the marker fixes and publishes `map -> odom`, the
+  drift those fixes correct. It drops any fix more than 3 sigma from its estimate.
+
+<p align="center"><img src="experiments/results/fusion/error-in-time.png" width="720" alt="Position and heading error of each estimate along the route"></p>
+
+## Key decisions
+
+| Decision | Why |
+|---|---|
+| The world comes from a script | Moving a marker is a one-line change, and nothing that depends on a marker's place is copied by hand. |
+| One URDF for Gazebo and TF | The camera that renders the images and the frame that places the detections cannot drift apart. |
+| Wheels that collide as spheres | A cylinder rests on the edges of its rim, and turning on the inner edges shortens the wheel separation the odometry assumes. |
+| Corners refined within 2 px | On a far marker, OpenCV's default window takes in the inner cells, whose edges drag every corner toward the centre. |
+| Bits read from the middle of each cell | A cell a few pixels wide takes in the blur of its neighbours, and one wrong bit drops a `DICT_4X4_50` marker. |
+| Pose from SQPnP | Being globally optimal, it returns the pose that best fits the four corners and never flips a marker to face away from the camera. |
+| One fix per marker | A filter that also knows the odometry weighs them, and separate fixes show which marker said what. |
+| Two filters, as in REP 105 | A controller can read `odom`, which never jumps, and the robot's place in the room comes from `map`, which does not drift. |
+| The gyro's bias taken out at start-up | Neither filter estimates a sensor's bias, and an uncorrected bias would go straight into the heading. |
+| Fixes gated at 3 sigma | One view sends many fixes a second with nearly the same error, and a looser gate lets a view that is off drag the estimate along. |
+| The guard owns `/cmd_vel` | Drivers publish on a topic of their own, which leaves room for anything that can veto a command to sit in between. |
+| Cores without ROS | Detection, localization, drift, bias and the guard's decisions are plain Python, tested in CI with no simulator. |
 
 ## Limitations
 
-- Rendered images are clean, with no sensor noise, motion blur or lens distortion. Detection here is
-  a best case.
-- The lighting comes from a single sun that never moves.
-- A marker's tilt only shows through perspective, which fades with the square of the distance. For a
-  far marker seen almost head-on, the viewing angle and orientation are poorly determined even
-  though the distance is not.
-- A marker far enough away that its cells are only a few pixels wide is read part of the time.
-  Reading it reliably would take bigger markers, a camera with more pixels, or a dictionary with
-  codes far enough apart to correct a bit.
-- The odometry's drift is only random and zero-mean. A real robot's also has a part that always
-  pulls the same way, which is left out here.
+- Rendered images are clean, with no sensor noise, motion blur or lens distortion, and a single sun
+  that never moves lights the room. Detection here is a best case.
+- A marker whose cells are only a few pixels wide is read part of the time. For a far marker seen
+  almost head-on, the viewing angle and the orientation are poorly determined.
+- The detector's distances come out slightly long, more on far and oblique markers. The localizer's
+  covariance is wide enough to absorb it, and that puts a floor on how close the global estimate
+  gets.
+- The wheel drift is random and zero-mean. A real robot's also has a part that always pulls the same
+  way.
+- The gyro's bias is measured once, and the robot has to stand still for a few seconds after
+  start-up. A real gyro's bias also wanders with temperature and time.
+- With no marker in range, the global estimate relies on the wheels and the gyro alone, and it
+  drifts until the next fix.
+- The global filter takes every fix as independent, and consecutive frames of one view carry nearly
+  the same error. A fix's covariance also leaves out that its sideways spread and its heading error
+  come from the same orientation error.
+- Apart from range noise the simulated lidar is ideal. Glass and mirrors behave like walls, sunlight
+  never blinds it, and a whole scan is captured at one instant. It sees a single plane 0.30 m above
+  the floor, and the floor marker or anything overhanging is invisible to it.
+- The guard is a teaching example with no safety certification. It does not check turning in place,
+  and a thin object far away may return too few rays to count.
+- The filters assume a flat floor and a level robot.
 - On modest hardware the simulation runs slower than real time, and the camera and lidar rates drop
   with it.
-- Apart from range noise, the simulated lidar is ideal. Dark or glossy surfaces return like any
-  other, glass and mirrors behave like walls, sunlight never blinds it, and a whole scan is captured
-  at one instant. A real unit takes a tenth of a second per turn while the robot keeps moving. Those
-  are the things to test on real hardware.
-- A 2D lidar sees a single plane, 0.30 m above the floor here. Anything lower, such as the floor
-  marker, or anything overhanging is invisible to it.
-- The guard is a teaching example with no safety certification. It does not check turning in
-  place, and an obstacle has to return at least `min_points` rays to count, which a thin object far
-  away may not do (rays are 1.3 cm apart at 1 m).
-- With no marker in range, the global estimate relies on odometry and the gyro alone and drifts
-  until the next fix.
-- The gyro's bias is measured once, and the robot has to stand still for a few seconds after
-  start-up. A real gyro's bias also wanders with temperature and time, which this calibration does
-  not follow.
-- The global filter takes every fix as independent. Consecutive frames of the same view give fixes
-  with nearly the same error, and the filter trusts that view more than it should.
-- A fix's covariance ignores that its sideways spread and its heading error come from the same
-  orientation error, and it overstates how much a single marker tells the filter.
-- The detector's distances come out slightly long, more on far and oblique markers. The
-  localizer's covariance is wide enough to absorb it, and that puts a floor on how close the global
-  estimate gets.
-- The filters assume a flat floor and a level robot.
 
 ## Quickstart
 
@@ -339,19 +214,24 @@ than one GPU, `MESA_D3D12_DEFAULT_ADAPTER_NAME` (for example `NVIDIA`) to pick w
 
 ```bash
 mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
-git clone https://github.com/KevDP/ros2-aruco-world.git   # or ln -s /path/to/this/repo
+git clone https://github.com/KevDP/ros2-aruco-world.git
 cd ~/ros2_ws && colcon build --symlink-install
 source install/setup.bash
 ros2 launch aruco_world world.launch.py
 ```
 
-It opens Gazebo and RViz. Launch arguments: `gz_gui:=false` (RViz only, lighter), `rviz:=false`,
-`image_view:=true` (a separate camera window), `detector:=false` (raw camera only), `guard:=false`
-(no lidar guard), `wheel_collision:=cylinder` (the wheels' drawn shape as their collision, to
-compare with the default sphere), `drift_seed:=7` (the same wheel drift on every start).
+It opens Gazebo and RViz. Launch arguments:
+
+- `gz_gui:=false`: RViz only, lighter.
+- `rviz:=false`, `image_view:=true`: no RViz, or a separate camera window.
+- `detector:=false`: the raw camera only.
+- `guard:=false`: no lidar guard.
+- `wheel_collision:=cylinder`: the wheels' drawn shape as their collision, to compare with the
+  sphere.
+- `drift_seed:=7`: the same wheel drift on every start.
 
 Drive it from another terminal (keys `i`, `j`, `l`, `,`, `k`). The guard listens on
-`/cmd_vel_teleop`, so teleop is remapped there:
+`/cmd_vel_teleop`, and teleop is remapped there:
 
 ```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=cmd_vel_teleop
@@ -359,75 +239,67 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=cmd_
 
 With `guard:=false`, drop the remap and teleop drives `/cmd_vel` directly.
 
-Watch the detections, the marker fixes and the lidar from other terminals:
-
-```bash
-ros2 topic echo /aruco/detections
-```
-
-```bash
-ros2 topic echo /aruco/robot_pose --field pose.pose.position
-```
-
-```bash
-ros2 topic hz /scan
-```
-
-Compare a fix, and the global filter's estimate, with where the robot really is:
-
-```bash
-ros2 topic echo /ground_truth --field pose.pose.position
-```
+Compare the global filter's estimate with where the robot really is:
 
 ```bash
 ros2 topic echo /odometry/global --field pose.pose.position
 ```
 
-In RViz, the green trail is the truth and the blue one is the global estimate, drawn with its
+```bash
+ros2 topic echo /ground_truth --field pose.pose.position
+```
+
+In RViz, the green trail is the true path and the blue one is the global estimate, drawn with its
 uncertainty. The gap between the `map` and `odom` axes is the drift the markers have corrected.
-
-Look at the frames:
-
-```bash
-ros2 run tf2_ros tf2_echo map camera_link_optical
-```
-
-```bash
-ros2 run tf2_tools view_frames
-```
 
 Run the detector on any other camera:
 
 ```bash
-ros2 run aruco_detector detector --ros-args -p dictionary:=DICT_4X4_50 -p marker_length:=0.15 -r image:=/my_camera/image -r camera_info:=/my_camera/camera_info
+ros2 run aruco_detector detector --ros-args \
+  -p dictionary:=DICT_4X4_50 -p marker_length:=0.15 \
+  -r image:=/my_camera/image -r camera_info:=/my_camera/camera_info
 ```
 
-Save a frame, raw and annotated:
+Save a camera frame, raw and annotated:
 
 ```bash
 ros2 run aruco_world camera_snapshot.py --out /tmp/aruco
 ```
 
-After editing a placement in `build_world.py`, regenerate and rebuild (from the repository root):
+After moving a marker in `build_world.py`, regenerate the world and rebuild, from the repository
+root:
 
 ```bash
 cd aruco_world && python3 scripts/build_world.py && cd ~/ros2_ws && colcon build --symlink-install
 ```
 
-Run an experiment against a fresh simulation and build its tables and figures (see
-`experiments/README.md` for each one):
+Lint and test without ROS, one pytest run per package so each finds its own settings:
+
+```bash
+pip install ruff==0.16.10 pytest numpy opencv-python-headless
+ruff check .
+for p in aruco_detector aruco_localization noisy_odometry scan_guard gyro_calibration; do pytest -q $p/test; done
+```
+
+## Experiments
+
+Each script runs against a fresh simulation, and its report rebuilds the tables and figures from the
+raw numbers it saved. `experiments/README.md` explains each one.
+
+| Experiment | Measures | Part |
+|---|---|---|
+| `visibility.py` | which markers the robot reads from each spot of the room | 1 |
+| `turning.py` | the wheel odometry's turns against the true ones, with cylinder and sphere wheels | 1 |
+| `camera_views.py` | what the camera sees from two poses, markers read and missed | 2 |
+| `perception.py` | how often markers are read, and the error of their pose, by distance and angle | 2 |
+| `guard_view.py` | what the lidar sees with an obstacle in each zone | 3 |
+| `stopping.py` | how much room the guard leaves at each speed | 3 |
+| `localization.py` | each fix's error against the true pose, by distance and angle | 4 |
+| `fusion.py` | each estimate's error along a 51 m route, over 30 runs | 5 |
 
 ```bash
 experiments/sim.sh -- python3 experiments/visibility.py
 python3 experiments/visibility_report.py
-```
-
-Lint and test without ROS (one pytest run per package, so each finds its own settings):
-
-```bash
-pip install ruff pytest numpy opencv-python-headless
-ruff check .
-for p in aruco_detector aruco_localization noisy_odometry scan_guard gyro_calibration; do pytest -q $p/test; done
 ```
 
 ## Repository structure
@@ -435,30 +307,21 @@ for p in aruco_detector aruco_localization noisy_odometry scan_guard gyro_calibr
 ```
 aruco_world/           simulation package
   config/              Gazebo bridge, guard zones, localizer limits, filters, odometry drift,
-                       gyro calibration; detector parameters, marker map and robot start
-                       (generated)
+                       gyro calibration, and the detector parameters, marker map and robot
+                       start that build_world.py generates
   launch/              world.launch.py
-  models/              aruco_<id> (generated); camera_bot, the robot's SDF, for reference
+  models/              aruco_<id> (generated), and camera_bot, the robot's SDF, for reference
   rviz/                aruco_world.rviz
   scripts/             build_world.py (generator), camera_snapshot.py
   urdf/                camera_bot.urdf.xacro, the robot
   worlds/              aruco_room.sdf (generated)
-aruco_detector/        detection package
-  aruco_detector/      detection.py (no ROS), node.py
-  test/                detection tests on synthetic images
+aruco_detector/        detection package: detection.py (no ROS), node.py, tests
 aruco_interfaces/      MarkerDetection and MarkerDetectionArray
-aruco_localization/    localization package
-  aruco_localization/  localization.py (no ROS), node.py
-  test/                localization tests on detections from known poses
-noisy_odometry/        odometry drift package
-  noisy_odometry/      drift.py (no ROS), node.py
-  test/                drift tests on synthetic motion
-gyro_calibration/      gyro bias package
-  gyro_calibration/    bias.py (no ROS), node.py
-  test/                bias tests on synthetic gyro readings
-scan_guard/            lidar guard package
-  scan_guard/          guard.py (no ROS), node.py
-  test/                guard tests on synthetic scans
-experiments/           scenarios checked against Gazebo's truth, their reports and results
+aruco_localization/    localization package: localization.py (no ROS), node.py, tests
+noisy_odometry/        odometry drift package: drift.py (no ROS), node.py, tests
+gyro_calibration/      gyro bias package: bias.py (no ROS), node.py, tests
+scan_guard/            lidar guard package: guard.py (no ROS), node.py, tests
+experiments/           scenarios checked against the true pose, their reports and results
+docs/diagrams/         the architecture diagrams of each layer
 .github/workflows/     CI: ruff and every package's tests
 ```
