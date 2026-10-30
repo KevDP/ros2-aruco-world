@@ -443,13 +443,13 @@ def plot_approach(settings: dict, trials: list[Trial], path: Path) -> None:
         axis.plot(trial.room[1:], step, color=colour, label=f"{trial.speed:.2f} m/s")
     axis.set_xlim(1.5, 0)
     axis.set_ylim(0, None)
-    axis.set_xlabel("room ahead (m)")
-    axis.set_ylabel("true speed (m/s)")
-    axis.set_title("Driving head-on at a wall")
-    axis.text(stop / 2, 0.02, "stop", ha="center", color=plot_style.AMBER)
-    axis.text((stop + slow) / 2, 0.02, "slow", ha="center", color=plot_style.CYAN)
+    axis.set_xlabel("distance to the wall (m)")
+    axis.set_ylabel("speed (m/s)")
+    axis.set_title("Speed while driving head-on at a wall")
+    axis.text(stop / 2, 0.02, "stop zone", ha="center", color=plot_style.AMBER)
+    axis.text((stop + slow) / 2, 0.02, "slow zone", ha="center", color=plot_style.CYAN)
     axis.grid(True)
-    axis.legend(loc="upper left")
+    axis.legend(title="speed", loc="upper left")
     plot_style.save(figure, path)
 
 
@@ -468,7 +468,7 @@ def plot_appear(settings: dict, outcomes: list[Outcome], path: Path) -> None:
         [100 * stop_estimate(v, settings, base) for v in speeds],
         color=plot_style.MUTED,
         linestyle="--",
-        label="estimate from rates and braking",
+        label="estimate",
     )
     axis.axhline(100 * stop_zone, color=plot_style.AMBER, linewidth=1.5)
     axis.text(0.01, 100 * stop_zone + 0.8, "stop zone", color=plot_style.AMBER)
@@ -478,14 +478,14 @@ def plot_appear(settings: dict, outcomes: list[Outcome], path: Path) -> None:
         [100 * o.after_placed for o in appear],
         color=plot_style.CYAN,
         s=16,
-        label="measured, one trial each",
+        label="trial",
         zorder=3,
     )
     axis.set_xlim(0, base["max_speed"] + 0.05)
     axis.set_ylim(0, 100 * stop_zone + 5)
-    axis.set_xlabel("speed when the box appeared (m/s)")
-    axis.set_ylabel("distance to rest (cm)")
-    axis.set_title("From a box appearing to the robot at rest")
+    axis.set_xlabel("speed (m/s)")
+    axis.set_ylabel("distance covered (cm)")
+    axis.set_title("Distance covered after a box appears ahead")
     axis.grid(True)
     axis.legend(loc="upper left", bbox_to_anchor=(0.0, 0.84))
     plot_style.save(figure, path)

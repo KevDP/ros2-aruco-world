@@ -11,7 +11,7 @@ run without ROS, on any machine with NumPy, Matplotlib and PyYAML.
 | `turning` | How far does the wheel odometry stray from the truth, per wheel collision shape? | Two turns in place at three rates and in both directions, and 2 m straight at two speeds, three times each |
 | `camera_views` | Which markers in the camera's view does the detector read? | Gazebo places the robot at its start pose and turned toward the box. The markers in view come from projecting the world with the camera's true pose. `--stock` detects with OpenCV's defaults |
 | `perception` | How often is a marker in view read, with whole cells and with cell centres, and how far off is the pose measured? | The `visibility` grid, with 12 headings turned by a random offset at each point. Every frame is read both ways |
-| `guard_view` | What does the guard see, and which of its zones does it light? | Gazebo places the robot with the box ahead and then close to a post. One scan, the robot and the zones as the guard reports them, drawn from above |
+| `guard_view` | What does the guard see ahead, and which zone does it apply? | Gazebo places the robot with the box ahead and then close to a post. One scan from above, with the corridor and the room to the nearest return in it, in the colour of the zone the guard reports |
 | `stopping` | How much room does the lidar guard leave, and how much does the robot need when something appears in its way? | Through the guard, at four speeds: drives at the back wall from six angles, past or into a post at four offsets, and at the box's face and corner. Then across open floor while Gazebo puts a box ahead of it, at eight distances. Approaches three times each, appearances five |
 | `localization` | How far from the truth does each marker's fix land, and does the localizer's covariance cover it? | The `visibility` grid, with 12 headings turned by offsets of its own. Every frame is read with four corner windows, and the localizer's code turns each marker read into a fix |
 
@@ -69,7 +69,7 @@ visibility.py          which markers the robot reads from each spot (report: vis
 turning.py             the odometry against the truth while turning (report: turning_report.py)
 camera_views.py        the camera's view from two poses, read and unread markers marked
 perception.py          read rate and pose error per marker in view (report: perception_report.py)
-guard_view.py          one scan and the guard's zones from above, in two poses
+guard_view.py          one scan and the room the guard measures ahead, from above, in two poses
 stopping.py            the guard's approaches and stops, on the true pose (report: stopping_report.py)
 localization.py        each marker's fix against the true pose (report: localization_report.py)
 results/<experiment>/  the raw numbers (CSV), summary.md and the figures
