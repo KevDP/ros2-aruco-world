@@ -40,12 +40,18 @@ class Detection:
         rvec: Rotation of the marker in the camera optical frame as a Rodrigues vector, or None
             when no calibration or marker size was given.
         tvec: Position of the marker centre in metres, or None like ``rvec``.
+        reprojection_error: RMS pixels between the corners and where the pose puts them, or None
+            like ``rvec``.
+        ambiguity: How alike the two poses the square allows fit its corners, from 0 to 1 (see
+            pose_quality), or None like ``rvec``.
     """
 
     marker_id: int
     corners: np.ndarray
     rvec: np.ndarray | None = None
     tvec: np.ndarray | None = None
+    reprojection_error: float | None = None
+    ambiguity: float | None = None
 
     @property
     def has_pose(self) -> bool:
@@ -173,10 +179,13 @@ class MarkerDetector:
         detections = []
         for marker_corners, marker_id in zip(corners, ids.flatten(), strict=True):
             points = marker_corners.reshape(4, 2).astype(np.float64)
-            rvec = tvec = None
+            rvec = tvec = error = ambiguity = None
             if posed:
                 rvec, tvec = estimate_pose(points, marker_length, camera_matrix, dist_coeffs)
-            detections.append(Detection(int(marker_id), points, rvec, tvec))
+                error, ambiguity = pose_quality(
+                    points, marker_length, rvec, tvec, camera_matrix, dist_coeffs
+                )
+            detections.append(Detection(int(marker_id), points, rvec, tvec, error, ambiguity))
         return sorted(detections, key=lambda d: d.marker_id)
 
 
@@ -207,19 +216,62 @@ def estimate_pose(
         (rvec, tvec): the marker's rotation as a Rodrigues vector and its centre in metres, both in
         the camera optical frame.
     """
-    if marker_length <= 0:
-        raise ValueError(f"marker_length must be positive, got {marker_length}")
-    half = marker_length / 2
-    # The printed square in its own frame (x right, y up), in ArUco's corner order.
-    object_points = np.array(
-        [[-half, half, 0.0], [half, half, 0.0], [half, -half, 0.0], [-half, -half, 0.0]]
-    )
     found, rvec, tvec = cv2.solvePnP(
-        object_points, corners, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_SQPNP
+        _square(marker_length), corners, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_SQPNP
     )
     if not found:
         raise RuntimeError("solvePnP found no pose for these marker corners")
     return rvec.reshape(3), tvec.reshape(3)
+
+
+def _square(marker_length: float) -> np.ndarray:
+    """The printed square's corners in its own frame (x right, y up), in ArUco's order."""
+    if marker_length <= 0:
+        raise ValueError(f"marker_length must be positive, got {marker_length}")
+    half = marker_length / 2
+    return np.array(
+        [[-half, half, 0.0], [half, half, 0.0], [half, -half, 0.0], [-half, -half, 0.0]]
+    )
+
+
+def pose_quality(
+    corners: np.ndarray,
+    marker_length: float,
+    rvec: np.ndarray,
+    tvec: np.ndarray,
+    camera_matrix: np.ndarray,
+    dist_coeffs: np.ndarray | None = None,
+) -> tuple[float, float]:
+    """How well a pose fits a marker's corners, and how close the other possible pose comes.
+
+    A flat square fits two poses whose tilts mirror each other, and the farther and more head-on
+    the view, the closer their fits (Schweighofer and Pinz, 2006). SOLVEPNP_IPPE_SQUARE returns
+    both. The ambiguity is the usual test for it (Munoz-Salinas et al., 2018): the smaller of the
+    two summed squared reprojection errors over the larger.
+
+    Args:
+        corners: (4, 2) pixel corners in ArUco order.
+        marker_length: Side of the black square in metres.
+        rvec, tvec: The pose to check, as estimate_pose returns it.
+        camera_matrix: 3x3 intrinsics.
+        dist_coeffs: Distortion coefficients, or None for none.
+
+    Returns:
+        (reprojection_error, ambiguity): the pose's RMS distance in pixels between the corners and
+        where it puts them, and a value from 0, where one pose fits clearly better, to 1, where
+        the corners cannot tell the two apart.
+    """
+    square = _square(marker_length)
+    projected, _ = cv2.projectPoints(square, rvec, tvec, camera_matrix, dist_coeffs)
+    error = float(np.sqrt(np.mean(np.sum((projected.reshape(4, 2) - corners) ** 2, axis=1))))
+    count, _, _, errors = cv2.solvePnPGeneric(
+        square, corners, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_IPPE_SQUARE
+    )
+    if count < 2:
+        return error, 0.0
+    # OpenCV reports each solution's RMS error, and the ratio of sums of squares is its square.
+    low, high = sorted(float(e) for e in np.ravel(errors)[:2])
+    return error, 1.0 if high == 0.0 else (low / high) ** 2
 
 
 def quaternion_from_rvec(rvec: np.ndarray) -> tuple[float, float, float, float]:

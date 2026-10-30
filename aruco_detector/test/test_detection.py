@@ -13,6 +13,8 @@ from aruco_detector.detection import (
     Detection,
     MarkerDetector,
     draw_detections,
+    estimate_pose,
+    pose_quality,
     quaternion_from_rvec,
 )
 
@@ -135,6 +137,37 @@ def test_a_far_marker_keeps_its_size(name: str):
     (found,) = MarkerDetector(DICTIONARY).detect(image)
 
     assert _side(found.corners) == pytest.approx(_side(truth), rel=0.06)
+
+
+def _corners(rvec: np.ndarray, tvec: np.ndarray, noise_px: float = 0.0) -> np.ndarray:
+    half = MARKER_LENGTH / 2
+    square = np.array(
+        [[-half, half, 0.0], [half, half, 0.0], [half, -half, 0.0], [-half, -half, 0.0]]
+    )
+    corners, _ = cv2.projectPoints(square, rvec, tvec, CAMERA, None)
+    return corners.reshape(4, 2) + np.random.default_rng(0).normal(0.0, noise_px, (4, 2))
+
+
+def test_a_near_turned_marker_is_not_ambiguous():
+    corners = _corners(_facing_camera(40), np.array([0.0, 0.0, 1.0]), noise_px=0.2)
+    rvec, tvec = estimate_pose(corners, MARKER_LENGTH, CAMERA)
+    error, ambiguity = pose_quality(corners, MARKER_LENGTH, rvec, tvec, CAMERA)
+    assert error < 0.5
+    assert ambiguity < 0.1
+
+
+def test_a_far_head_on_marker_is_ambiguous():
+    # Far and almost head-on, the two tilts fit the corners nearly as well.
+    corners = _corners(_facing_camera(5), np.array([0.0, 0.0, 4.0]), noise_px=0.2)
+    rvec, tvec = estimate_pose(corners, MARKER_LENGTH, CAMERA)
+    _, ambiguity = pose_quality(corners, MARKER_LENGTH, rvec, tvec, CAMERA)
+    assert 0.3 < ambiguity <= 1.0
+
+
+def test_detections_carry_their_pose_quality():
+    detection = _detect_one(40, 1.0)
+    assert detection.reprojection_error is not None and detection.reprojection_error < 1.0
+    assert detection.ambiguity is not None and 0.0 <= detection.ambiguity <= 1.0
 
 
 def test_without_calibration_markers_have_no_pose():

@@ -61,8 +61,8 @@ For every camera frame, `aruco_detector` publishes:
 
 - `/aruco/image`: the camera frame annotated with every marker's outline, axes, id, distance and
   viewing angle
-- `/aruco/detections` (`aruco_interfaces/MarkerDetectionArray`): id, pose, distance and viewing
-  angle of every marker, with the image's stamp and frame
+- `/aruco/detections` (`aruco_interfaces/MarkerDetectionArray`): id, pose, distance, viewing angle,
+  reprojection error and ambiguity of every marker, with the image's stamp and frame
 - `/aruco/markers` (`visualization_msgs/MarkerArray`): a panel and an id for each detected marker,
   for RViz
 
@@ -229,6 +229,9 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
   Correcting a misread bit was left off, because codes in this dictionary differ in as few as 4
   bits and a correction can turn one marker into another. `experiments/perception.py` measures
   both readings.
+- Each detection also carries how alike the two poses a flat square allows fit its corners (the
+  ambiguity, solved with `SOLVEPNP_IPPE_SQUARE`) and how far the corners sit from where the chosen
+  pose puts them. The published pose still comes from SQPnP, and the two numbers only describe it.
 - The subscriptions use the sensor QoS profile, which drops late frames. Publishers keep the
   default reliable profile that any viewer can subscribe to. Each RViz marker message starts by
   deleting the previous frame's markers, which leaves no lifetime to guess.

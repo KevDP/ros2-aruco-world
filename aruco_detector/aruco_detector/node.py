@@ -111,6 +111,8 @@ class ArucoDetectorNode(Node):
             marker.pose = self.pose_msg(d)
             marker.distance = d.distance
             marker.viewing_angle = d.viewing_angle
+            marker.reprojection_error = d.reprojection_error
+            marker.ambiguity = d.ambiguity
             array.markers.append(marker)
         return array
 
