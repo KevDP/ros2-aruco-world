@@ -65,8 +65,9 @@ ekf_global:
                    false, false, false,
                    false, false, false]
     # Mahalanobis distance from the current estimate beyond which a fix is dropped. It scales with
-    # how uncertain the estimate and the fix are.
-    pose0_rejection_threshold: 5.0
+    # how uncertain the estimate and the fix are. Fixes from one view arrive many times a second with
+    # nearly the same error, and a gate this tight keeps a view that is off from pulling the estimate.
+    pose0_rejection_threshold: 3.0
 
     # Fixes carry their image's stamp and arrive late. Keep a second of history to apply each one
     # at the time it belongs to.

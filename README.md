@@ -267,6 +267,10 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
   start-up.
 - The global filter keeps a second of history and applies each fix at its image's stamp, however
   late the fix arrives.
+- The global filter drops any fix more than 3 sigma from its estimate. One view sends many fixes a
+  second with nearly the same error, and with a looser gate a view that is off drags the estimate
+  along. Trusting every fix less, through a wider covariance or fewer fixes, helps as often but
+  can let a mirrored fix in, after which the filter rejects the good ones.
 
 ### Guard
 
@@ -319,6 +323,8 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
 - The gyro's bias is measured once, and the robot has to stand still for a few seconds after
   start-up. A real gyro's bias also wanders with temperature and time, which this calibration does
   not follow.
+- The global filter takes every fix as independent. Consecutive frames of the same view give fixes
+  with nearly the same error, and the filter trusts that view more than it should.
 - A fix's covariance ignores that its sideways spread and its heading error come from the same
   orientation error, and it overstates how much a single marker tells the filter.
 - The detector's distances come out slightly long, more on far and oblique markers. The
