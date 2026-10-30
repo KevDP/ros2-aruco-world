@@ -19,6 +19,10 @@ import numpy as np
 # of MarkerDetector explains why.
 PIXELS_PER_CELL = 6
 CELL_MARGIN = 0.34  # 2 of the 6 px: int(0.34 * 6) is 2, where 1/3 would round down to 1
+# Pixels to each side of a corner that its subpixel refinement looks at, and OpenCV's own default.
+# The docstring of MarkerDetector explains the difference.
+CORNER_WINDOW_PX = 2
+OPENCV_CORNER_WINDOW_PX = 5
 
 # ---------------------------------------------------------------------------
 # Detections
@@ -69,9 +73,12 @@ class Detection:
         return self.rvec, self.tvec
 
 
-def _configure(parameters: cv2.aruco.DetectorParameters, cell_centres: bool) -> None:
+def _configure(
+    parameters: cv2.aruco.DetectorParameters, cell_centres: bool, corner_window: int
+) -> None:
     """Subpixel corners, and the centre-third bit reading when asked for, on either OpenCV API."""
     parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+    parameters.cornerRefinementWinSize = corner_window
     if cell_centres:
         parameters.perspectiveRemovePixelPerCell = PIXELS_PER_CELL
         parameters.perspectiveRemoveIgnoredMarginPerCell = CELL_MARGIN
@@ -87,6 +94,13 @@ class MarkerDetector:
     rounding them to whole pixels shrinks the square and inflates the distance, more for a marker
     that looks small.
 
+    Each corner is refined within 2 px of where it was found. OpenCV's default of 5 px reaches past
+    the black border of a marker a few metres away and into the cells of its code, whose edges pull
+    every corner toward the centre. The square then comes out small, the distance long and the
+    orientation off, enough to put a far marker's fix metres away. Since 4.9, OpenCV caps the window
+    at a share of the cell on its own. The robot runs 4.6, the version in Ubuntu 24.04.
+    experiments/localization.py compares window sizes.
+
     Each bit is read from the centre third of its cell. With OpenCV's defaults the whole cell
     counts, because their 13% margin rounds down to no pixels at 4 px per cell. A few metres away a
     cell is 3 or 4 px wide and its edges blur into its neighbours. One misread cell then rejects the
@@ -94,28 +108,37 @@ class MarkerDetector:
     AprilTag reads each cell at its centre as well.
     """
 
-    def __init__(self, dictionary_name: str, cell_centres: bool = True) -> None:
+    def __init__(
+        self,
+        dictionary_name: str,
+        cell_centres: bool = True,
+        corner_window: int = CORNER_WINDOW_PX,
+    ) -> None:
         """Set up detection for one dictionary.
 
         Args:
             dictionary_name: An OpenCV ArUco dictionary, such as DICT_4X4_50.
             cell_centres: True leaves out the edges of every cell. False keeps OpenCV's default
                 reading of the whole cell, which the experiments use for comparison.
+            corner_window: Pixels to each side of a corner that its refinement looks at.
+                OPENCV_CORNER_WINDOW_PX is OpenCV's own, for detection as it comes out of the box.
         """
         if not dictionary_name.startswith("DICT_") or not hasattr(cv2.aruco, dictionary_name):
             raise ValueError(
                 f"unknown ArUco dictionary {dictionary_name!r}: expected a cv2.aruco.DICT_* name"
             )
+        if corner_window < 1:
+            raise ValueError(f"corner_window must be at least 1 pixel, got {corner_window}")
         self._dictionary = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary_name))
         if hasattr(cv2.aruco, "ArucoDetector"):  # OpenCV 4.7 and later
             parameters = cv2.aruco.DetectorParameters()
-            _configure(parameters, cell_centres)
+            _configure(parameters, cell_centres, corner_window)
             self._detector = cv2.aruco.ArucoDetector(self._dictionary, parameters)
             self._parameters = None
         else:  # OpenCV 4.6
             self._detector = None
             self._parameters = cv2.aruco.DetectorParameters_create()
-            _configure(self._parameters, cell_centres)
+            _configure(self._parameters, cell_centres, corner_window)
 
     def detect(
         self,

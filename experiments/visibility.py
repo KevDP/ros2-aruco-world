@@ -22,7 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import rclpy
-from aruco_detector.detection import MarkerDetector
+from aruco_detector.detection import CORNER_WINDOW_PX, MarkerDetector
 from cv_bridge import CvBridge
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
@@ -74,15 +74,16 @@ def grid_positions(step: float) -> list[tuple[float, float]]:
 class Visibility(Node):
     """Collects one camera frame and the true pose after each move, and detects the markers."""
 
-    def __init__(self, cell_centres: bool = True) -> None:
+    def __init__(self, cell_centres: bool = True, corner_window: int = CORNER_WINDOW_PX) -> None:
         """Subscribe to the camera and the true pose.
 
         Args:
             cell_centres: Passed to the detector. False reads whole cells, OpenCV's default.
+            corner_window: Passed to the detector. The live node's by default.
         """
         super().__init__("visibility_experiment")
         dictionary, self.marker_length = marker_settings()
-        self.detector = MarkerDetector(dictionary, cell_centres)
+        self.detector = MarkerDetector(dictionary, cell_centres, corner_window)
         self.bridge = CvBridge()
         self.camera_matrix: np.ndarray | None = None
         self.dist_coeffs: np.ndarray | None = None
@@ -162,8 +163,8 @@ def main() -> None:
         open(args.out / "poses.csv", "w", newline="") as poses_file,
         open(args.out / "detections.csv", "w", newline="") as detections_file,
     ):
-        poses = csv.writer(poses_file)
-        detections = csv.writer(detections_file)
+        poses = csv.writer(poses_file, lineterminator="\n")
+        detections = csv.writer(detections_file, lineterminator="\n")
         poses.writerow(["pose", "x_cmd", "y_cmd", "yaw_cmd", "x", "y", "yaw", "markers"])
         detections.writerow(["pose", "marker", "distance", "viewing_angle_deg"])
         pose_id = 0

@@ -79,8 +79,10 @@ pose on the robot. The robot moves on the floor, and a fix keeps only x, y and h
 Each fix comes with a covariance that grows with distance, and not equally in every direction. The
 detector measures the distance to a marker well and its orientation less well. A small error in the
 orientation rotates the estimated camera position around the marker, and the fix spreads sideways by
-about the distance times the angle. Past a distance limit no fix is published at all. A small marker
-seen almost head-on has an ambiguous orientation, and its fix can land metres off.
+about the distance times the angle. Past a distance limit no fix is published at all. A marker that
+looks small allows two orientations that fit its corners almost equally well, and when the detector
+picks the wrong one the fix lands metres off. The localizer passes it on, and the global filter is
+the one that has to reject it.
 
 It publishes:
 
@@ -216,6 +218,11 @@ teleop -> /cmd_vel_teleop -> scan_guard (with /scan) -> /cmd_vel -> ros_gz_bridg
 - Corners are refined to subpixel precision and the pose comes from SQPnP. Being globally optimal,
   it returns the pose that best fits the four corners and never flips a marker to face away from
   the camera.
+- The refinement looks 2 px around each corner. OpenCV's default window suits markers that look
+  big. On one a few metres away it also takes in the inner cells, whose edges drag every corner
+  toward the centre, and the marker then looks smaller, farther and turned. OpenCV 4.9 and later
+  scale the window to the cell, and Ubuntu 24.04 ships 4.6. `experiments/localization.py` measures
+  each window's fixes against the truth.
 - Bits are read from the middle of each cell of the marker's grid. Read whole, as OpenCV does by
   default, a cell a few pixels wide takes in the blur of its neighbours, and one wrong bit drops a
   `DICT_4X4_50` marker. Reading the middle keeps far markers readable at no cost in wrong ids.

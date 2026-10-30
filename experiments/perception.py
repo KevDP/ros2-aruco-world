@@ -90,9 +90,9 @@ def main() -> None:
         open(args.out / "markers.csv", "w", newline="") as markers_file,
         open(args.out / "anomalies.csv", "w", newline="") as anomalies_file,
     ):
-        frames = csv.writer(frames_file)
-        markers = csv.writer(markers_file)
-        anomalies = csv.writer(anomalies_file)
+        frames = csv.writer(frames_file, lineterminator="\n")
+        markers = csv.writer(markers_file, lineterminator="\n")
+        anomalies = csv.writer(anomalies_file, lineterminator="\n")
         frames.writerow(["frame", "x_cmd", "y_cmd", "yaw_cmd", "x", "y", "yaw"])
         markers.writerow(
             ["frame", "marker", "distance", "viewing_angle_deg", "side_px", "read_whole_cells",

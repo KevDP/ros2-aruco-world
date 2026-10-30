@@ -9,10 +9,11 @@ run without ROS, on any machine with NumPy, Matplotlib and PyYAML.
 | --- | --- | --- |
 | `visibility` | Which markers does the robot read from each spot in the room? | Gazebo places the robot on a 0.5 m grid over the free floor, facing 12 headings, and the detector runs on one frame per pose |
 | `turning` | How far does the wheel odometry stray from the truth, per wheel collision shape? | Two turns in place at three rates and in both directions, and 2 m straight at two speeds, three times each |
-| `camera_views` | Which markers in the camera's view does the detector read? | Gazebo places the robot at its start pose and turned toward the box. The markers in view come from projecting the world with the camera's true pose. `--stock` reads whole cells, OpenCV's default |
+| `camera_views` | Which markers in the camera's view does the detector read? | Gazebo places the robot at its start pose and turned toward the box. The markers in view come from projecting the world with the camera's true pose. `--stock` detects with OpenCV's defaults |
 | `perception` | How often is a marker in view read, with whole cells and with cell centres, and how far off is the pose measured? | The `visibility` grid, with 12 headings turned by a random offset at each point. Every frame is read both ways |
 | `guard_view` | What does the guard see, and which of its zones does it light? | Gazebo places the robot with the box ahead and then close to a post. One scan, the robot and the zones as the guard reports them, drawn from above |
 | `stopping` | How much room does the lidar guard leave, and how much does the robot need when something appears in its way? | Through the guard, at four speeds: drives at the back wall from six angles, past or into a post at four offsets, and at the box's face and corner. Then across open floor while Gazebo puts a box ahead of it, at eight distances. Approaches three times each, appearances five |
+| `localization` | How far from the truth does each marker's fix land, and does the localizer's covariance cover it? | The `visibility` grid, with 12 headings turned by offsets of its own. Every frame is read with four corner windows, and the localizer's code turns each marker read into a fix |
 
 ## Running
 
@@ -46,6 +47,11 @@ experiments/sim.sh guard:=true -- python3 experiments/stopping.py
 python3 experiments/stopping_report.py
 ```
 
+```bash
+experiments/sim.sh -- python3 experiments/localization.py
+python3 experiments/localization_report.py
+```
+
 `sim.sh` starts a headless simulation, waits until Gazebo publishes the robot's true pose, and
 runs the command. Whether the command finishes, fails or is interrupted, the simulation is shut
 down afterwards. Each run uses its own Gazebo partition, out of reach of a server left over from an
@@ -65,6 +71,7 @@ camera_views.py        the camera's view from two poses, read and unread markers
 perception.py          read rate and pose error per marker in view (report: perception_report.py)
 guard_view.py          one scan and the guard's zones from above, in two poses
 stopping.py            the guard's approaches and stops, on the true pose (report: stopping_report.py)
+localization.py        each marker's fix against the true pose (report: localization_report.py)
 results/<experiment>/  the raw numbers (CSV), summary.md and the figures
 ```
 

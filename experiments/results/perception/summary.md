@@ -43,12 +43,12 @@ Measured minus true, for every marker read: the median and the 10th to 90th perc
 
 | Distance | Read | Distance error | Viewing angle error |
 |---|---:|---:|---:|
-| 1-2 m | 54 | +1.8% (+1.2 to +2.2) | +0.1 deg (-0.2 to +0.5) |
-| 2-3 m | 137 | +2.6% (+2.0 to +4.4) | +0.3 deg (-1.3 to +2.9) |
-| 3-4 m | 236 | +5.0% (+1.5 to +8.4) | +1.2 deg (-1.9 to +8.0) |
-| 4-5 m | 276 | +9.1% (+3.0 to +16.4) | +3.6 deg (-1.9 to +12.7) |
-| 5-6 m | 256 | +15.5% (+9.5 to +20.4) | +5.7 deg (-0.5 to +14.0) |
-| 6-8 m | 245 | +19.3% (+13.3 to +26.8) | +8.7 deg (-1.0 to +19.7) |
+| 1-2 m | 54 | +1.8% (+1.3 to +2.3) | +0.1 deg (-0.2 to +0.6) |
+| 2-3 m | 137 | +2.6% (+2.3 to +3.1) | +0.2 deg (-0.5 to +0.9) |
+| 3-4 m | 236 | +3.4% (+2.9 to +4.3) | +0.2 deg (-0.7 to +1.9) |
+| 4-5 m | 276 | +4.5% (+3.4 to +6.2) | +0.4 deg (-1.0 to +4.5) |
+| 5-6 m | 256 | +6.0% (+4.3 to +8.3) | +0.7 deg (-1.7 to +5.6) |
+| 6-8 m | 245 | +7.9% (+5.9 to +9.9) | +2.1 deg (-1.7 to +6.3) |
 
 ## Detections with the wrong id, or where no marker is
 

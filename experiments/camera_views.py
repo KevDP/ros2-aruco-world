@@ -7,8 +7,8 @@ calibration, and the markers read come from the same detector the live node runs
 drawn in green with the distance the detector measures, unread ones in amber. Frames are upscaled
 before drawing so the labels stay legible when the figure is shown small.
 
-With --stock the detector reads whole cells, as OpenCV does by default, and the figure is written
-as camera-views-stock.png.
+With --stock the detector runs as OpenCV comes out of the box, reading whole cells with its own
+corner window, and the figure is written as camera-views-stock.png.
 
 Run from the repository root, with the workspace built and sourced (see experiments/README.md):
     experiments/sim.sh -- python3 experiments/camera_views.py [--stock]
@@ -23,6 +23,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import rclpy
+from aruco_detector.detection import CORNER_WINDOW_PX, OPENCV_CORNER_WINDOW_PX
 from camera_model import CameraModel, MarkerView
 from sim_tools import RobotPlacer
 from visibility import Visibility
@@ -68,12 +69,13 @@ def annotate(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=RESULTS / "camera", help="output folder")
-    parser.add_argument("--stock", action="store_true", help="read whole cells, OpenCV's default")
+    parser.add_argument("--stock", action="store_true", help="detect with OpenCV's defaults")
     args, ros_args = parser.parse_known_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
     rclpy.init(args=ros_args)
-    node = Visibility(cell_centres=not args.stock)
+    window = OPENCV_CORNER_WINDOW_PX if args.stock else CORNER_WINDOW_PX
+    node = Visibility(cell_centres=not args.stock, corner_window=window)
     placer = RobotPlacer()
     node.wait_until_live()
     model = None

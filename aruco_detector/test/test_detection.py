@@ -67,6 +67,11 @@ def test_unknown_dictionary_is_rejected():
         MarkerDetector("DICT_NOT_A_DICTIONARY")
 
 
+def test_corner_window_needs_a_pixel():
+    with pytest.raises(ValueError, match="corner_window"):
+        MarkerDetector(DICTIONARY, corner_window=0)
+
+
 def _detect_one(turn_deg: float, distance: float) -> Detection:
     """The single marker detected in a rendered view, with its pose."""
     image = _render(7, _facing_camera(turn_deg), np.array([0.0, 0.0, distance]))
@@ -112,6 +117,24 @@ def test_reads_markers_whose_cells_are_a_few_pixels_wide(marker_id: int):
     detections = MarkerDetector(DICTIONARY).detect(image)
 
     assert [d.marker_id for d in detections] == [marker_id]
+
+
+def _side(corners: np.ndarray) -> float:
+    """Mean length of a square's four sides, in pixels."""
+    return float(np.mean([np.linalg.norm(corners[i] - corners[i - 1]) for i in range(4)]))
+
+
+@pytest.mark.parametrize("name", ["far_marker_5_head_on", "far_marker_9_at_27_deg"])
+def test_a_far_marker_keeps_its_size(name: str):
+    # Crops of frames from the simulated camera with a marker about 4 m away, and its true corners
+    # projected from the world. With OpenCV's own corner window the square found is smaller than
+    # this tolerance allows.
+    image = cv2.imread(str(DATA / f"{name}.png"), cv2.IMREAD_GRAYSCALE)
+    truth = np.loadtxt(DATA / f"{name}_corners.txt")
+
+    (found,) = MarkerDetector(DICTIONARY).detect(image)
+
+    assert _side(found.corners) == pytest.approx(_side(truth), rel=0.06)
 
 
 def test_without_calibration_markers_have_no_pose():

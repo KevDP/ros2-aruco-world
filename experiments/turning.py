@@ -159,8 +159,8 @@ def main() -> None:
         open(args.out / f"trials_{args.label}.csv", "w", newline="") as trials_file,
         open(args.out / f"trace_{args.label}.csv", "w", newline="") as trace_file,
     ):
-        summary = csv.writer(trials_file)
-        trace = csv.writer(trace_file)
+        summary = csv.writer(trials_file, lineterminator="\n")
+        trace = csv.writer(trace_file, lineterminator="\n")
         summary.writerow(
             ["label", "kind", "command", "direction", "repeat",
              "odom_turn", "true_turn", "odom_distance", "true_distance"]

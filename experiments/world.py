@@ -17,19 +17,28 @@ import yaml
 REPO = Path(__file__).resolve().parent.parent
 WORLD_PACKAGE = REPO / "aruco_world"
 ROBOT_XACRO = WORLD_PACKAGE / "urdf" / "camera_bot.urdf.xacro"
+LOCALIZATION_CORE = REPO / "aruco_localization" / "aruco_localization" / "localization.py"
 RESULTS = REPO / "experiments" / "results"
+
+
+def _load(path: Path, name: str) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # dataclasses look their module up while being built
+    spec.loader.exec_module(module)
+    return module
 
 
 def load_world() -> ModuleType:
     """build_world.py as a module, for its marker placements and the room's layout."""
-    path = WORLD_PACKAGE / "scripts" / "build_world.py"
-    spec = importlib.util.spec_from_file_location("build_world", path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # its dataclasses look their module up while being built
-    spec.loader.exec_module(module)
-    return module
+    return _load(WORLD_PACKAGE / "scripts" / "build_world.py", "build_world")
+
+
+def localization_core() -> ModuleType:
+    """The localizer's own code, loaded from the repository: it needs NumPy and no ROS."""
+    return _load(LOCALIZATION_CORE, "localization_core")
 
 
 def marker_settings() -> tuple[str, float]:
@@ -39,11 +48,26 @@ def marker_settings() -> tuple[str, float]:
     return params["dictionary"], float(params["marker_length"])
 
 
-def localizer_reach() -> float:
-    """Metres past which the localizer gives no fix, from its configuration."""
+def marker_map() -> dict[int, list[float]]:
+    """Each marker's x, y, z, qx, qy, qz, qw in the map, as build_world.py writes them."""
+    path = WORLD_PACKAGE / "config" / "marker_map.yaml"
+    params = yaml.safe_load(path.read_text())["aruco_localizer"]["ros__parameters"]
+    return {i: [float(v) for v in params[f"marker_{i}"]] for i in params["marker_ids"]}
+
+
+def localizer_parameters() -> dict[str, float]:
+    """The localizer's distance limit and spread, from its configuration."""
     path = WORLD_PACKAGE / "config" / "aruco_localizer.yaml"
     params = yaml.safe_load(path.read_text())["aruco_localizer"]["ros__parameters"]
-    return float(params["max_distance"])
+    return {
+        name: float(params[name])
+        for name in ("max_distance", "range_sigma_per_m", "angle_sigma_per_m")
+    }
+
+
+def localizer_reach() -> float:
+    """Metres past which the localizer gives no fix, from its configuration."""
+    return localizer_parameters()["max_distance"]
 
 
 def robot_properties() -> dict[str, float]:
