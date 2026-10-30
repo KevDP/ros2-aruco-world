@@ -111,23 +111,28 @@ class Obstacle:
 # ---------------------------------------------------------------------------
 
 
-def guard_settings(node: Node, timeout_s: float = 10.0) -> dict[str, float]:
-    """The parameters the running scan_guard uses, as it reports them.
+def node_parameters(
+    node: Node, target: str, names: list[str], timeout_s: float = 10.0
+) -> dict[str, object]:
+    """Parameters a running node uses, as it reports them.
 
     Raises:
-        RuntimeError: if no guard answers, as when the launch ran with guard:=false.
+        RuntimeError: if the node does not answer, as when the launch left it out.
     """
-    client = AsyncParameterClient(node, "scan_guard")
+    client = AsyncParameterClient(node, target)
     if not client.wait_for_services(timeout_sec=timeout_s):
-        raise RuntimeError("no scan_guard parameters: run with guard:=true")
-    future = client.get_parameters(list(GUARD_PARAMETERS))
+        raise RuntimeError(f"no {target} parameters: is it running?")
+    future = client.get_parameters(names)
     rclpy.spin_until_future_complete(node, future, timeout_sec=timeout_s)
     if future.result() is None:
-        raise RuntimeError("scan_guard did not report its parameters")
+        raise RuntimeError(f"{target} did not report its parameters")
     values = future.result().values
-    return {
-        name: parameter_value_to_python(v) for name, v in zip(GUARD_PARAMETERS, values, strict=True)
-    }
+    return {name: parameter_value_to_python(v) for name, v in zip(names, values, strict=True)}
+
+
+def guard_settings(node: Node, timeout_s: float = 10.0) -> dict[str, float]:
+    """The parameters the running scan_guard uses. It runs only with guard:=true."""
+    return node_parameters(node, "scan_guard", list(GUARD_PARAMETERS), timeout_s)
 
 
 # ---------------------------------------------------------------------------

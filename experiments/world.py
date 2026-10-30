@@ -70,6 +70,12 @@ def localizer_reach() -> float:
     return localizer_parameters()["max_distance"]
 
 
+def robot_start() -> tuple[float, float, float]:
+    """Where the launch spawns the robot: x and y in metres, heading in radians."""
+    start = yaml.safe_load((WORLD_PACKAGE / "config" / "robot_start.yaml").read_text())
+    return float(start["x"]), float(start["y"]), float(start["yaw"])
+
+
 def robot_properties() -> dict[str, float]:
     """The numeric properties the URDF builds the robot with (sizes in metres)."""
     tag = "{http://www.ros.org/wiki/xacro}property"

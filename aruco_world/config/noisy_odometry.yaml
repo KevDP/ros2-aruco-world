@@ -8,5 +8,6 @@ noisy_odometry:
     heading_var_per_rad: 4.4e-4
     # ...and about 1 degree per metre driven straight (rad^2/m).
     heading_var_per_m: 3.0e-4
-    # -1 draws a new drift at every start. Any other number repeats the same one.
+    # -1 draws a new drift at every start, and any other number repeats the same one. The launch
+    # sets it from its drift_seed argument.
     seed: -1

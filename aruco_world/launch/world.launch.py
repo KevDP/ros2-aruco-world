@@ -20,6 +20,7 @@ Usage:
     ros2 launch aruco_world world.launch.py gz_gui:=false                   # RViz only, lighter
     ros2 launch aruco_world world.launch.py guard:=false                    # teleop on /cmd_vel
     ros2 launch aruco_world world.launch.py wheel_collision:=cylinder       # to compare wheels
+    ros2 launch aruco_world world.launch.py drift_seed:=7                   # the same drift again
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 # Nodes that read the clock use Gazebo's, bridged on /clock, and TF and images share one time base.
 # With mixed clocks RViz drops data as too old. The detector stays off /clock because it only
@@ -163,7 +165,10 @@ def generate_launch_description() -> LaunchDescription:
         package="noisy_odometry",
         executable="noisy_odometry",
         name="noisy_odometry",
-        parameters=[os.path.join(share, "config", "noisy_odometry.yaml")],
+        parameters=[
+            os.path.join(share, "config", "noisy_odometry.yaml"),
+            {"seed": ParameterValue(LaunchConfiguration("drift_seed"), value_type=int)},
+        ],
         remappings=[("odom_exact", "/sim/wheel_odometry"), ("odom", "/wheel/odometry")],
         output="screen",
     )
@@ -258,6 +263,11 @@ def generate_launch_description() -> LaunchDescription:
                 "guard",
                 default_value="true",
                 description="Guard the robot with the lidar: drive on /cmd_vel_teleop",
+            ),
+            DeclareLaunchArgument(
+                "drift_seed",
+                default_value="-1",
+                description="Seed of the wheel odometry's drift: -1 for a new one at every start",
             ),
             DeclareLaunchArgument(
                 "wheel_collision",

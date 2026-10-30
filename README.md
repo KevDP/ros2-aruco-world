@@ -342,7 +342,7 @@ ros2 launch aruco_world world.launch.py
 It opens Gazebo and RViz. Launch arguments: `gz_gui:=false` (RViz only, lighter), `rviz:=false`,
 `image_view:=true` (a separate camera window), `detector:=false` (raw camera only), `guard:=false`
 (no lidar guard), `wheel_collision:=cylinder` (the wheels' drawn shape as their collision, to
-compare with the default sphere).
+compare with the default sphere), `drift_seed:=7` (the same wheel drift on every start).
 
 Drive it from another terminal (keys `i`, `j`, `l`, `,`, `k`). The guard listens on
 `/cmd_vel_teleop`, so teleop is remapped there:

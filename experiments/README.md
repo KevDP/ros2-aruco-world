@@ -14,6 +14,7 @@ run without ROS, on any machine with NumPy, Matplotlib and PyYAML.
 | `guard_view` | What does the guard see ahead, and which zone does it apply? | Gazebo places the robot with the box ahead and then close to a post. One scan from above, with the corridor and the room to the nearest return in it, in the colour of the zone the guard reports |
 | `stopping` | How much room does the lidar guard leave, and how much does the robot need when something appears in its way? | Through the guard, at four speeds: drives at the back wall from six angles, past or into a post at four offsets, and at the box's face and corner. Then across open floor while Gazebo puts a box ahead of it, at eight distances. Approaches three times each, appearances five |
 | `localization` | How far from the truth does each marker's fix land, and does the localizer's covariance cover it? | The `visibility` grid, with 12 headings turned by offsets of its own. Every frame is read with four corner windows, and the localizer's code turns each marker read into a fix |
+| `fusion` | How far from the truth does each pose estimate drift along a route, with and without markers, with the gyro calibrated or not, and with the fixes weighed in different ways? | Three laps of a 5 x 3.2 m rectangle, steered by the true pose, once per simulation with its own drift seed, 30 times. Extra filters run next to the robot's own: a pair on the uncalibrated gyro, and global ones with a 5-sigma gate, with the fixes' covariance times 4 and 16, and with at most two fixes a second |
 
 ## Running
 
@@ -52,6 +53,13 @@ experiments/sim.sh -- python3 experiments/localization.py
 python3 experiments/localization_report.py
 ```
 
+```bash
+for run in $(seq 1 30); do
+  experiments/sim.sh detector:=true drift_seed:=$run -- python3 experiments/fusion.py --run $run
+done
+python3 experiments/fusion_report.py
+```
+
 `sim.sh` starts a headless simulation, waits until Gazebo publishes the robot's true pose, and
 runs the command. Whether the command finishes, fails or is interrupted, the simulation is shut
 down afterwards. Each run uses its own Gazebo partition, out of reach of a server left over from an
@@ -72,6 +80,7 @@ perception.py          read rate and pose error per marker in view (report: perc
 guard_view.py          one scan and the room the guard measures ahead, from above, in two poses
 stopping.py            the guard's approaches and stops, on the true pose (report: stopping_report.py)
 localization.py        each marker's fix against the true pose (report: localization_report.py)
+fusion.py              every pose estimate along a route against the truth (report: fusion_report.py)
 results/<experiment>/  the raw numbers (CSV), summary.md and the figures
 ```
 
